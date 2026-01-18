@@ -1,4 +1,5 @@
 const TXA_MAGIC = 'TXA\0'
+const TXA_VERSION = 2
 
 function deltaDecode(data) {
   if (data.length === 0) return new Uint8Array(0)
@@ -64,6 +65,9 @@ export class TXADecoder {
     offset = 4
 
     const version = bytes[offset++]
+    if (version !== TXA_VERSION) {
+      throw new Error(`Unsupported TXA version: ${version}, expected ${TXA_VERSION}`)
+    }
     
     this.header = {
       version,
@@ -77,10 +81,10 @@ export class TXADecoder {
       bgColor: [bytes[offset + 12], bytes[offset + 13], bytes[offset + 14]],
       changeSpeed: bytes[offset + 15] / 10,
       canvasRatio: bytes[offset + 16],
-      lumBits: version >= 2 ? bytes[offset + 17] : 8
+      lumBits: bytes[offset + 17]
     }
     
-    offset = version >= 2 ? 32 : 26
+    offset = 32
 
     this.characters = ''
     for (let i = 0; i < this.header.charCount; i++) {
@@ -114,18 +118,14 @@ export class TXADecoder {
   }
 
   initGrid() {
-    const { width, height, colorMode, version } = this.header
-    const cellSize = version >= 2 ? (colorMode === 0 ? 1 : 3) : (colorMode === 0 ? 2 : 4)
+    const { width, height, colorMode } = this.header
+    const cellSize = colorMode === 0 ? 1 : 3
     
     this.currentGrid = []
     for (let x = 0; x < width; x++) {
       this.currentGrid[x] = []
       for (let y = 0; y < height; y++) {
-        if (this.header.version >= 2) {
-          this.currentGrid[x][y] = cellSize === 1 ? [0] : [0, 0, 0]
-        } else {
-          this.currentGrid[x][y] = cellSize === 2 ? [0, 0] : [0, 0, 0, 0]
-        }
+        this.currentGrid[x][y] = cellSize === 1 ? [0] : [0, 0, 0]
       }
     }
     
@@ -149,33 +149,20 @@ export class TXADecoder {
 
   applyFrame(index) {
     const frame = this.frames[index]
-    const { width, height, colorMode, version } = this.header
-    const cellSize = version >= 2 ? (colorMode === 0 ? 1 : 3) : (colorMode === 0 ? 2 : 4)
+    const { width, height, colorMode } = this.header
+    const cellSize = colorMode === 0 ? 1 : 3
     
     if (frame.type === 0) {
       const expectedSize = width * height * cellSize
-      const decompressed = version >= 2 
-        ? decompress(frame.data, expectedSize)
-        : rleDecode(frame.data, expectedSize)
+      const decompressed = decompress(frame.data, expectedSize)
       
       let i = 0
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-          if (version >= 2) {
-            if (cellSize === 1) {
-              this.currentGrid[x][y] = [decompressed[i]]
-            } else {
-              this.currentGrid[x][y] = [decompressed[i], decompressed[i + 1], decompressed[i + 2]]
-            }
+          if (cellSize === 1) {
+            this.currentGrid[x][y] = [decompressed[i]]
           } else {
-            if (cellSize === 2) {
-              this.currentGrid[x][y] = [decompressed[i], decompressed[i + 1]]
-            } else {
-              this.currentGrid[x][y] = [
-                decompressed[i], decompressed[i + 1],
-                decompressed[i + 2], decompressed[i + 3]
-              ]
-            }
+            this.currentGrid[x][y] = [decompressed[i], decompressed[i + 1], decompressed[i + 2]]
           }
           i += cellSize
         }
@@ -185,9 +172,7 @@ export class TXADecoder {
       
       if (changeCount === 0) return
       
-      const deltaData = version >= 2
-        ? decompress(frame.data.slice(2), changeCount * (2 + cellSize))
-        : rleDecode(frame.data.slice(2), changeCount * (2 + cellSize))
+      const deltaData = decompress(frame.data.slice(2), changeCount * (2 + cellSize))
       
       let i = 0
       for (let c = 0; c < changeCount; c++) {
@@ -195,21 +180,10 @@ export class TXADecoder {
         const y = deltaData[i++]
         
         if (x < width && y < height) {
-          if (version >= 2) {
-            if (cellSize === 1) {
-              this.currentGrid[x][y] = [deltaData[i]]
-            } else {
-              this.currentGrid[x][y] = [deltaData[i], deltaData[i + 1], deltaData[i + 2]]
-            }
+          if (cellSize === 1) {
+            this.currentGrid[x][y] = [deltaData[i]]
           } else {
-            if (cellSize === 2) {
-              this.currentGrid[x][y] = [deltaData[i], deltaData[i + 1]]
-            } else {
-              this.currentGrid[x][y] = [
-                deltaData[i], deltaData[i + 1],
-                deltaData[i + 2], deltaData[i + 3]
-              ]
-            }
+            this.currentGrid[x][y] = [deltaData[i], deltaData[i + 1], deltaData[i + 2]]
           }
         }
         i += cellSize
@@ -237,5 +211,4 @@ export class TXADecoder {
   get bgColor() { return this.header?.bgColor || [0, 0, 0] }
   get changeSpeed() { return this.header?.changeSpeed || 2.0 }
   get canvasRatio() { return this.header?.canvasRatio || 0 }
-  get version() { return this.header?.version || 1 }
 }
