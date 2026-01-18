@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TXA Player Web Component Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: #111;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 40px;
+      min-height: 100vh;
+    }
+    
+    h1 {
+      color: #0f0;
+      margin-bottom: 20px;
+    }
+    
+    .demo-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    txa-player {
+      width: 100%;
+      height: 500px;
+      border: 2px solid #333;
+      border-radius: 8px;
+    }
+    
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+    }
+    
+    button {
+      padding: 10px 20px;
+      background: #0f0;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    button:hover {
+      background: #0c0;
+    }
+    
+    .time {
+      font-family: monospace;
+      font-size: 14px;
+      color: #0f0;
+    }
+    
+    .progress {
+      flex: 1;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: #0f0;
+      width: 0%;
+      transition: width 0.1s;
+    }
+    
+    .info {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .file-input {
+      margin-top: 16px;
+    }
+    
+    .file-input input {
+      display: none;
+    }
+    
+    .file-input label {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #333;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    
+    .file-input label:hover {
+      background: #444;
+    }
+    
+    code {
+      display: block;
+      margin-top: 20px;
+      padding: 16px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #0f0;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <h1>&lt;txa-player&gt; Web Component</h1>
+    
+    <txa-player 
+      id="player"
+      render-scale="1"
+      change-speed="2"
+      color-dark="#003300"
+      color-light="#00ff00"
+      loop
+    ></txa-player>
+    
+    <div class="controls">
+      <button id="play-btn">▶</button>
+      <div class="progress" id="progress">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <span class="time" id="time">0:00 / 0:00</span>
+    </div>
+    
+    <div class="file-input">
+      <input type="file" id="file-input" accept=".txa">
+      <label for="file-input">📁 Load .txa File</label>
+    </div>
+    
+    <div class="info" id="info">
+      Drop a .txa file or click "Load .txa File" to start
+    </div>
+    
+    <code id="code-example">
+&lt;txa-player 
+  src="/animation.txa"
+  autoplay
+  loop
+  render-scale="1.5"
+  change-speed="3"
+  color-dark="#003300"
+  color-light="#00ff00"
+&gt;&lt;/txa-player&gt;
+    </code>
+  </div>
+
+  <script type="module">
+    import './src/TXAPlayerElement.js'
+    
+    const player = document.getElementById('player')
+    const playBtn = document.getElementById('play-btn')
+    const progressBar = document.getElementById('progress')
+    const progressFill = document.getElementById('progress-fill')
+    const timeDisplay = document.getElementById('time')
+    const fileInput = document.getElementById('file-input')
+    const info = document.getElementById('info')
+    
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60)
+      const s = Math.floor(sec % 60)
+      return `${m}:${s.toString().padStart(2, '0')}`
+    }
+    
+    player.addEventListener('loadstart', () => {
+      info.textContent = 'Loading...'
+    })
+    
+    player.addEventListener('loadeddata', (e) => {
+      const d = e.detail
+      info.textContent = `Resolution: ${d.width}×${d.height} | FPS: ${d.fps} | Frames: ${d.totalFrames} | Duration: ${formatTime(d.duration)}`
+    })
+    
+    player.addEventListener('timeupdate', (e) => {
+      progressFill.style.width = `${e.detail.progress * 100}%`
+      timeDisplay.textContent = `${formatTime(e.detail.currentTime)} / ${formatTime(player.duration)}`
+    })
+    
+    player.addEventListener('play', () => {
+      playBtn.textContent = '⏸'
+    })
+    
+    player.addEventListener('pause', () => {
+      playBtn.textContent = '▶'
+    })
+    
+    player.addEventListener('ended', () => {
+      console.log('Animation ended')
+    })
+    
+    player.addEventListener('error', (e) => {
+      info.textContent = `Error: ${e.detail.message}`
+    })
+    
+    playBtn.addEventListener('click', () => {
+      player.toggle()
+    })
+    
+    progressBar.addEventListener('click', (e) => {
+      const rect = progressBar.getBoundingClientRect()
+      const progress = (e.clientX - rect.left) / rect.width
+      const frame = Math.floor(progress * player.totalFrames)
+      player.seek(frame)
+    })
+    
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      
+      const url = URL.createObjectURL(file)
+      player.src = url
+    })
+    
+    // Drag and drop
+    document.addEventListener('dragover', (e) => e.preventDefault())
+    document.addEventListener('drop', async (e) => {
+      e.preventDefault()
+      const file = e.dataTransfer.files[0]
+      if (file && file.name.endsWith('.txa')) {
+        const url = URL.createObjectURL(file)
+        player.src = url
+      }
+    })
+  </script>
+</body>
+</html>
