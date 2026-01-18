@@ -171,7 +171,7 @@ export class ASCIIPlayer {
     if (!grid) return
     
     const ctx = this.ctx
-    const { width, height, colorMode, version } = this.decoder
+    const { width, height, colorMode } = this.decoder
     const cellSize = this.cellSize * this.coverScale
     const { charWidth, charHeight, charCount } = this.charAtlas
     const offsetX = this.coverOffsetX
@@ -197,50 +197,28 @@ export class ASCIIPlayer {
         
         let r, g, b, alpha, luminance
         
-        if (version >= 2) {
-          if (colorMode === 0) {
-            luminance = cell[0]
-            const overrideColor = this.getOverrideColor(luminance)
-            if (overrideColor) {
-              r = overrideColor[0]
-              g = overrideColor[1]
-              b = overrideColor[2]
-            } else {
-              const color = this.decoder.getColor(luminance)
-              r = color[0]
-              g = color[1]
-              b = color[2]
-            }
-            alpha = luminance / 255
+        if (colorMode === 0) {
+          // Gradient mode: cell = [luminance]
+          luminance = cell[0]
+          const overrideColor = this.getOverrideColor(luminance)
+          if (overrideColor) {
+            r = overrideColor[0]
+            g = overrideColor[1]
+            b = overrideColor[2]
           } else {
-            r = cell[0]
-            g = cell[1]
-            b = cell[2]
-            luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
-            alpha = luminance / 255
+            const color = this.decoder.getColor(luminance)
+            r = color[0]
+            g = color[1]
+            b = color[2]
           }
+          alpha = luminance / 255
         } else {
-          if (colorMode === 0) {
-            luminance = cell[1]
-            const overrideColor = this.getOverrideColor(luminance)
-            if (overrideColor) {
-              r = overrideColor[0]
-              g = overrideColor[1]
-              b = overrideColor[2]
-            } else {
-              const color = this.decoder.getColor(luminance)
-              r = color[0]
-              g = color[1]
-              b = color[2]
-            }
-            alpha = luminance / 255
-          } else {
-            r = cell[1]
-            g = cell[2]
-            b = cell[3]
-            luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
-            alpha = luminance / 255
-          }
+          // Fullcolor mode: cell = [r, g, b]
+          r = cell[0]
+          g = cell[1]
+          b = cell[2]
+          luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
+          alpha = luminance / 255
         }
         
         if (alpha < 0.05) continue
