@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASCII Craft</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+    }
+    
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      color: #fff;
+      z-index: 100;
+      min-width: 280px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      backdrop-filter: blur(10px);
+    }
+    
+    .controls h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #0f0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .controls h3 {
+      font-size: 11px;
+      font-weight: 600;
+      margin: 20px 0 12px 0;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .control-group {
+      margin-bottom: 16px;
+    }
+    
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+    
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 6px;
+    }
+    
+    .control-group input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      outline: none;
+    }
+    
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #0f0;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    .control-group input[type="color"] {
+      width: 100%;
+      height: 36px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: transparent;
+    }
+    
+    .control-group input[type="text"] {
+      width: 100%;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #fff;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    
+    .control-group select {
+      width: 100%;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    
+    .control-group select option {
+      background: #111;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      background: rgba(0, 255, 0, 0.1);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      border-radius: 6px;
+      color: #0f0;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      background: rgba(0, 255, 0, 0.2);
+      border-color: #0f0;
+    }
+    
+    .file-input-wrapper {
+      position: relative;
+    }
+    
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    
+    .value-display {
+      font-size: 11px;
+      color: #0f0;
+      float: right;
+    }
+    
+    .stats {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 100;
+    }
+    
+    .drop-zone {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 255, 0, 0.1);
+      border: 3px dashed #0f0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      pointer-events: none;
+    }
+    
+    .drop-zone.active {
+      display: flex;
+    }
+    
+    .drop-zone-text {
+      font-size: 24px;
+      color: #0f0;
+      font-weight: 600;
+    }
+    
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    
+    .checkbox-label input {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .color-row {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .color-row .control-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    
+    .color-row input[type="color"] {
+      height: 32px;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  
+  <div class="controls">
+    <h2>ASCII Craft</h2>
+    
+    <div class="control-group">
+      <label>Source</label>
+      <select id="source-select">
+        <option value="demo">Demo (3D Cube)</option>
+        <option value="image">Image</option>
+        <option value="video">Video</option>
+        <option value="webcam">Webcam</option>
+      </select>
+    </div>
+    
+    <div class="control-group file-input-wrapper" id="file-upload" style="display: none;">
+      <input type="file" id="file-input" accept="image/*,video/*">
+      <button class="btn">Choose File</button>
+    </div>
+    
+    <div class="control-group">
+      <label>Target FPS <span class="value-display" id="target-fps-value">60</span></label>
+      <input type="range" id="target-fps" min="1" max="120" value="60" step="1">
+    </div>
+    
+    <div class="control-group">
+      <label>Cell Size <span class="value-display" id="cell-size-value">16</span></label>
+      <input type="range" id="cell-size" min="4" max="64" value="16" step="1">
+    </div>
+    
+    <div class="control-group">
+      <label>Font Family</label>
+      <select id="font-family">
+        <option value="monospace">Monospace</option>
+        <option value="Courier New, Courier, monospace">Courier New</option>
+        <option value="Consolas, monospace">Consolas</option>
+        <option value="Monaco, monospace">Monaco</option>
+        <option value="Menlo, monospace">Menlo</option>
+        <option value="Source Code Pro, monospace">Source Code Pro</option>
+        <option value="JetBrains Mono, monospace">JetBrains Mono</option>
+      </select>
+    </div>
+    
+    <div class="control-group">
+      <label>Background Char</label>
+      <input type="text" id="bg-char" value=" " maxlength="1">
+    </div>
+    
+    <div class="control-group">
+      <label>Pattern Chars</label>
+      <input type="text" id="pattern-chars" value="0123456789ABCDEF">
+    </div>
+    
+    <div class="control-group">
+      <label>Change Speed <span class="value-display" id="change-speed-value">2.0</span></label>
+      <input type="range" id="change-speed" min="0" max="20" value="2" step="0.5">
+    </div>
+    
+    <h3>Levels (Cutout)</h3>
+    
+    <div class="control-group">
+      <label>Input Black <span class="value-display" id="input-black-value">0.00</span></label>
+      <input type="range" id="input-black" min="0" max="1" value="0" step="0.01">
+    </div>
+    
+    <div class="control-group">
+      <label>Input White <span class="value-display" id="input-white-value">1.00</span></label>
+      <input type="range" id="input-white" min="0" max="1" value="1" step="0.01">
+    </div>
+    
+    <div class="control-group">
+      <label>Gamma <span class="value-display" id="gamma-value">1.00</span></label>
+      <input type="range" id="gamma" min="0.1" max="3" value="1" step="0.01">
+    </div>
+    
+    <div class="control-group">
+      <label>Contrast <span class="value-display" id="contrast-value">1.00</span></label>
+      <input type="range" id="contrast" min="0" max="3" value="1" step="0.01">
+    </div>
+    
+    <h3>Color</h3>
+    
+    <div class="color-row">
+      <div class="control-group">
+        <label>Dark</label>
+        <input type="color" id="color-dark" value="#003300">
+      </div>
+      <div class="control-group">
+        <label>Light</label>
+        <input type="color" id="color-light" value="#00ff00">
+      </div>
+    </div>
+    
+    <div class="control-group">
+      <label>Hue Shift <span class="value-display" id="hue-shift-value">0.00</span></label>
+      <input type="range" id="hue-shift" min="0" max="1" value="0" step="0.01">
+    </div>
+    
+    <div class="control-group">
+      <label>Saturation <span class="value-display" id="saturation-value">1.00</span></label>
+      <input type="range" id="saturation" min="0" max="2" value="1" step="0.01">
+    </div>
+    
+    <div class="control-group">
+      <label>Background Color</label>
+      <input type="color" id="bg-color" value="#000000">
+    </div>
+    
+    <div class="control-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="invert"> Invert
+      </label>
+    </div>
+    
+    <div class="control-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="color-mode"> Color Mode
+      </label>
+    </div>
+  </div>
+  
+  <div class="stats" id="stats">FPS: --</div>
+  
+  <div class="drop-zone" id="drop-zone">
+    <span class="drop-zone-text">Drop image or video here</span>
+  </div>
+  
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
