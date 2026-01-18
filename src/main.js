@@ -451,6 +451,7 @@ class ASCIICraft {
   setupRecordingControls() {
     const recordFpsInput = document.getElementById('record-fps')
     const recordMaxFramesInput = document.getElementById('record-max-frames')
+    const lumBitsSelect = document.getElementById('lum-bits')
     const recordBtn = document.getElementById('record-btn')
     const recordStatus = document.getElementById('record-status')
     const recordTime = document.getElementById('record-time')
@@ -460,6 +461,7 @@ class ASCIICraft {
     
     let recordFps = 30
     let maxFrames = 300
+    let lumBits = 8
     
     const updateDurationPreview = () => {
       const duration = maxFrames / recordFps
@@ -477,6 +479,12 @@ class ASCIICraft {
       document.getElementById('record-max-frames-value').textContent = maxFrames
       updateDurationPreview()
     })
+    
+    if (lumBitsSelect) {
+      lumBitsSelect.addEventListener('change', (e) => {
+        lumBits = parseInt(e.target.value)
+      })
+    }
     
     recordBtn.addEventListener('click', () => {
       if (this.recorder && this.recorder.isRecording) {
@@ -497,6 +505,7 @@ class ASCIICraft {
           colorMode: this.asciiEffect.colorMode ? 1 : 0,
           changeSpeed: this.asciiEffect.changeSpeed,
           canvasRatio: this.canvasRatio,
+          lumBits: lumBits,
           onFrame: ({ frame, elapsed }) => {
             recordTime.textContent = (elapsed / 1000).toFixed(1) + 's'
             recordFrames.textContent = frame

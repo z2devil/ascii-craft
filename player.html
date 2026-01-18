@@ -396,6 +396,8 @@
           <option value="Consolas, monospace">Consolas</option>
           <option value="Monaco, monospace">Monaco</option>
           <option value="Menlo, monospace">Menlo</option>
+          <option value="Source Code Pro, monospace">Source Code Pro</option>
+          <option value="JetBrains Mono, monospace">JetBrains Mono</option>
         </select>
       </div>
       
@@ -474,13 +476,32 @@
       return '#' + rgb.map(c => c.toString(16).padStart(2, '0')).join('')
     }
     
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B'
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
+    }
+    
+    function getCanvasMemory() {
+      const width = canvas.width
+      const height = canvas.height
+      // Canvas 使用 RGBA 格式，每像素 4 字节
+      return width * height * 4
+    }
+    
+    function updateStats() {
+      if (!player) return
+      const canvasMemory = getCanvasMemory()
+      stats.textContent = `${canvas.width}×${canvas.height} @ ${player.fps}fps | Memory: ${formatBytes(canvasMemory)}`
+    }
+    
     function updateInfo() {
       document.getElementById('info-resolution').textContent = `${player.width}×${player.height}`
       document.getElementById('info-duration').textContent = formatTime(player.duration)
       document.getElementById('info-fps').textContent = player.fps
       document.getElementById('info-frames').textContent = player.totalFrames
       document.getElementById('info-colormode').textContent = player.decoder.colorMode === 0 ? 'Gradient' : 'Full Color'
-      stats.textContent = `${player.width}×${player.height} @ ${player.fps}fps`
+      updateStats()
     }
     
     function loadSettingsFromFile() {
@@ -595,12 +616,14 @@
     
     canvasRatioSelect.addEventListener('change', (e) => {
       player?.setCanvasRatio(parseInt(e.target.value))
+      setTimeout(updateStats, 100)
     })
     
     renderScaleInput.addEventListener('input', (e) => {
       const value = parseInt(e.target.value)
       document.getElementById('scale-value').textContent = value
       player?.setRenderScale(value / 100)
+      setTimeout(updateStats, 100)
     })
     
     changeSpeedInput.addEventListener('input', (e) => {

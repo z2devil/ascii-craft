@@ -1,9 +1,17 @@
-/**
- * TXA (Text Animation) Decoder
- * See TXAEncoder.js for file format specification
- */
-
 const TXA_MAGIC = 'TXA\0'
+
+function deltaDecode(data) {
+  if (data.length === 0) return new Uint8Array(0)
+  
+  const result = new Uint8Array(data.length)
+  result[0] = data[0]
+  
+  for (let i = 1; i < data.length; i++) {
+    result[i] = (result[i - 1] + data[i]) & 0xFF
+  }
+  
+  return result
+}
 
 function rleDecode(data, expectedSize) {
   const result = []
@@ -29,6 +37,11 @@ function rleDecode(data, expectedSize) {
   return new Uint8Array(result)
 }
 
+function decompress(data, expectedSize) {
+  const rleDecoded = rleDecode(data, expectedSize)
+  return deltaDecode(rleDecoded)
+}
+
 export class TXADecoder {
   constructor() {
     this.header = null
@@ -50,8 +63,10 @@ export class TXADecoder {
     }
     offset = 4
 
+    const version = bytes[offset++]
+    
     this.header = {
-      version: bytes[offset++],
+      version,
       colorMode: bytes[offset++],
       width: view.getUint16(offset, true),
       height: view.getUint16(offset + 2, true),
@@ -61,9 +76,11 @@ export class TXADecoder {
       colorCount: view.getUint16(offset + 10, true),
       bgColor: [bytes[offset + 12], bytes[offset + 13], bytes[offset + 14]],
       changeSpeed: bytes[offset + 15] / 10,
-      canvasRatio: bytes[offset + 16]
+      canvasRatio: bytes[offset + 16],
+      lumBits: version >= 2 ? bytes[offset + 17] : 8
     }
-    offset += 12 + 14
+    
+    offset = version >= 2 ? 32 : 26
 
     this.characters = ''
     for (let i = 0; i < this.header.charCount; i++) {
@@ -97,14 +114,18 @@ export class TXADecoder {
   }
 
   initGrid() {
-    const { width, height, colorMode } = this.header
-    const cellSize = colorMode === 0 ? 2 : 4
+    const { width, height, colorMode, version } = this.header
+    const cellSize = version >= 2 ? (colorMode === 0 ? 1 : 3) : (colorMode === 0 ? 2 : 4)
     
     this.currentGrid = []
     for (let x = 0; x < width; x++) {
       this.currentGrid[x] = []
       for (let y = 0; y < height; y++) {
-        this.currentGrid[x][y] = cellSize === 2 ? [0, 0] : [0, 0, 0, 0]
+        if (this.header.version >= 2) {
+          this.currentGrid[x][y] = cellSize === 1 ? [0] : [0, 0, 0]
+        } else {
+          this.currentGrid[x][y] = cellSize === 2 ? [0, 0] : [0, 0, 0, 0]
+        }
       }
     }
     
@@ -128,23 +149,33 @@ export class TXADecoder {
 
   applyFrame(index) {
     const frame = this.frames[index]
-    const { width, height, colorMode } = this.header
-    const cellSize = colorMode === 0 ? 2 : 4
+    const { width, height, colorMode, version } = this.header
+    const cellSize = version >= 2 ? (colorMode === 0 ? 1 : 3) : (colorMode === 0 ? 2 : 4)
     
     if (frame.type === 0) {
       const expectedSize = width * height * cellSize
-      const decompressed = rleDecode(frame.data, expectedSize)
+      const decompressed = version >= 2 
+        ? decompress(frame.data, expectedSize)
+        : rleDecode(frame.data, expectedSize)
       
       let i = 0
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-          if (cellSize === 2) {
-            this.currentGrid[x][y] = [decompressed[i], decompressed[i + 1]]
+          if (version >= 2) {
+            if (cellSize === 1) {
+              this.currentGrid[x][y] = [decompressed[i]]
+            } else {
+              this.currentGrid[x][y] = [decompressed[i], decompressed[i + 1], decompressed[i + 2]]
+            }
           } else {
-            this.currentGrid[x][y] = [
-              decompressed[i], decompressed[i + 1],
-              decompressed[i + 2], decompressed[i + 3]
-            ]
+            if (cellSize === 2) {
+              this.currentGrid[x][y] = [decompressed[i], decompressed[i + 1]]
+            } else {
+              this.currentGrid[x][y] = [
+                decompressed[i], decompressed[i + 1],
+                decompressed[i + 2], decompressed[i + 3]
+              ]
+            }
           }
           i += cellSize
         }
@@ -154,10 +185,9 @@ export class TXADecoder {
       
       if (changeCount === 0) return
       
-      const deltaData = rleDecode(
-        frame.data.slice(2),
-        changeCount * (2 + cellSize)
-      )
+      const deltaData = version >= 2
+        ? decompress(frame.data.slice(2), changeCount * (2 + cellSize))
+        : rleDecode(frame.data.slice(2), changeCount * (2 + cellSize))
       
       let i = 0
       for (let c = 0; c < changeCount; c++) {
@@ -165,13 +195,21 @@ export class TXADecoder {
         const y = deltaData[i++]
         
         if (x < width && y < height) {
-          if (cellSize === 2) {
-            this.currentGrid[x][y] = [deltaData[i], deltaData[i + 1]]
+          if (version >= 2) {
+            if (cellSize === 1) {
+              this.currentGrid[x][y] = [deltaData[i]]
+            } else {
+              this.currentGrid[x][y] = [deltaData[i], deltaData[i + 1], deltaData[i + 2]]
+            }
           } else {
-            this.currentGrid[x][y] = [
-              deltaData[i], deltaData[i + 1],
-              deltaData[i + 2], deltaData[i + 3]
-            ]
+            if (cellSize === 2) {
+              this.currentGrid[x][y] = [deltaData[i], deltaData[i + 1]]
+            } else {
+              this.currentGrid[x][y] = [
+                deltaData[i], deltaData[i + 1],
+                deltaData[i + 2], deltaData[i + 3]
+              ]
+            }
           }
         }
         i += cellSize
@@ -199,4 +237,5 @@ export class TXADecoder {
   get bgColor() { return this.header?.bgColor || [0, 0, 0] }
   get changeSpeed() { return this.header?.changeSpeed || 2.0 }
   get canvasRatio() { return this.header?.canvasRatio || 0 }
+  get version() { return this.header?.version || 1 }
 }

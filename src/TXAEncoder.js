@@ -1,11 +1,11 @@
 /**
- * TXA (Text Animation) Encoder
+ * TXA (Text Animation) Encoder - Version 2
  * 
  * File Format Specification:
  * 
  * HEADER (32 bytes):
  *   - Magic:        4 bytes  "TXA\0"
- *   - Version:      1 byte   (current: 1)
+ *   - Version:      1 byte   (current: 2)
  *   - ColorMode:    1 byte   (0=gradient, 1=fullcolor)
  *   - Width:        2 bytes  (grid columns, uint16 LE)
  *   - Height:       2 bytes  (grid rows, uint16 LE)
@@ -13,29 +13,44 @@
  *   - TotalFrames:  4 bytes  (uint32 LE)
  *   - CharCount:    1 byte   (number of characters in palette)
  *   - ColorCount:   2 bytes  (number of colors in palette, uint16 LE)
- *   - Reserved:     14 bytes (for future use)
+ *   - BgColor:      3 bytes  (RGB)
+ *   - ChangeSpeed:  1 byte   (value * 10 for 0.1 precision)
+ *   - CanvasRatio:  1 byte   (0=free, 1=16:9, 2=4:3, 3=1:1, 4=9:16, 5=3:4)
+ *   - LumBits:      1 byte   (luminance bits: 8=256 levels, 6=64, 5=32, 4=16)
+ *   - Reserved:     8 bytes  (for future use)
  * 
  * PALETTE (variable):
- *   - Characters:   CharCount bytes (UTF-8 encoded, 1 byte each for ASCII)
+ *   - Characters:   CharCount bytes (ASCII)
  *   - Colors:       ColorCount * 3 bytes (RGB triplets)
  * 
  * FRAMES (variable):
  *   - FrameType:    1 byte   (0=keyframe, 1=delta)
  *   - DataSize:     4 bytes  (uint32 LE, compressed data size)
- *   - Data:         DataSize bytes (RLE compressed)
+ *   - Data:         DataSize bytes (Delta + RLE compressed)
  * 
- * CELL DATA (per cell):
- *   - ColorMode 0 (gradient):  2 bytes [charIndex, luminance8]
- *   - ColorMode 1 (fullcolor): 4 bytes [charIndex, r, g, b]
+ * CELL DATA (per cell, before compression):
+ *   - ColorMode 0 (gradient):  1 byte [luminance] (quantized)
+ *   - ColorMode 1 (fullcolor): 3 bytes [r, g, b]
+ * 
+ * COMPRESSION: Delta Encoding (row-wise) + RLE
  */
 
 const TXA_MAGIC = 'TXA\0'
-const TXA_VERSION = 1
+const TXA_VERSION = 2
 
-/**
- * RLE (Run-Length Encoding) compression
- * Format: [count, ...values] where count=0 means literal run, count>0 means repeat
- */
+function deltaEncode(data) {
+  if (data.length === 0) return new Uint8Array(0)
+  
+  const result = new Uint8Array(data.length)
+  result[0] = data[0]
+  
+  for (let i = 1; i < data.length; i++) {
+    result[i] = (data[i] - data[i - 1] + 256) & 0xFF
+  }
+  
+  return result
+}
+
 function rleEncode(data) {
   const result = []
   let i = 0
@@ -44,7 +59,6 @@ function rleEncode(data) {
     const value = data[i]
     let runLength = 1
     
-    // Count consecutive identical values
     while (i + runLength < data.length && 
            data[i + runLength] === value && 
            runLength < 255) {
@@ -52,11 +66,9 @@ function rleEncode(data) {
     }
     
     if (runLength >= 3) {
-      // RLE: [255, count, value]
       result.push(255, runLength, value)
       i += runLength
     } else {
-      // Literal: collect non-repeating values
       const literalStart = i
       let literalLength = 0
       
@@ -76,7 +88,6 @@ function rleEncode(data) {
       
       if (literalLength === 0) literalLength = 1
       
-      // Literal: [count, ...values] where count < 255
       result.push(literalLength)
       for (let j = 0; j < literalLength; j++) {
         result.push(data[literalStart + j])
@@ -88,10 +99,11 @@ function rleEncode(data) {
   return new Uint8Array(result)
 }
 
-/**
- * Calculate delta between two frames
- * Returns array of changed cells: [x, y, ...cellData]
- */
+function compress(data) {
+  const deltaEncoded = deltaEncode(data)
+  return rleEncode(deltaEncoded)
+}
+
 function calculateDelta(prevFrame, currFrame, cellSize) {
   const changes = []
   const width = prevFrame.length
@@ -103,11 +115,10 @@ function calculateDelta(prevFrame, currFrame, cellSize) {
       const curr = currFrame[x][y]
       
       let changed = false
-      if (cellSize === 2) {
-        changed = prev[0] !== curr[0] || prev[1] !== curr[1]
+      if (cellSize === 1) {
+        changed = prev[0] !== curr[0]
       } else {
-        changed = prev[0] !== curr[0] || prev[1] !== curr[1] || 
-                  prev[2] !== curr[2] || prev[3] !== curr[3]
+        changed = prev[0] !== curr[0] || prev[1] !== curr[1] || prev[2] !== curr[2]
       }
       
       if (changed) {
@@ -130,74 +141,80 @@ export class TXAEncoder {
     this.bgColor = options.bgColor || [0, 0, 0]
     this.changeSpeed = options.changeSpeed || 2.0
     this.canvasRatio = options.canvasRatio || 0
+    this.lumBits = options.lumBits || 8
     
     this.frames = []
-    this.colorPalette = new Map()
+    this.colorPalette = []
     this.lastKeyframe = null
     this.frameCount = 0
   }
   
-  /**
-   * Add a frame to the encoder
-   * @param {Array} gridData - 2D array [x][y] of cell data
-   *   - Gradient mode: [charIndex, luminance (0-255)]
-   *   - Fullcolor mode: [charIndex, r, g, b]
-   */
+  quantizeLuminance(lum) {
+    if (this.lumBits >= 8) return lum
+    const levels = 1 << this.lumBits
+    const step = 256 / levels
+    const quantized = Math.floor(lum / step)
+    return Math.round(quantized * step + step / 2)
+  }
+  
   addFrame(gridData) {
     const isKeyframe = this.frameCount % this.keyframeInterval === 0
-    const cellSize = this.colorMode === 0 ? 2 : 4
+    const cellSize = this.colorMode === 0 ? 1 : 3
+    
+    const processedGrid = gridData.map(col => col.map(cell => {
+      if (this.colorMode === 0) {
+        return [this.quantizeLuminance(cell[0])]
+      } else {
+        return [cell[0], cell[1], cell[2]]
+      }
+    }))
     
     if (isKeyframe || !this.lastKeyframe) {
-      // Encode as keyframe (full data)
       const flatData = []
       for (let y = 0; y < this.height; y++) {
         for (let x = 0; x < this.width; x++) {
-          const cell = gridData[x]?.[y] || (this.colorMode === 0 ? [0, 0] : [0, 0, 0, 0])
+          const cell = processedGrid[x]?.[y] || (this.colorMode === 0 ? [0] : [0, 0, 0])
           flatData.push(...cell)
         }
       }
       
-      const compressed = rleEncode(new Uint8Array(flatData))
+      const compressed = compress(new Uint8Array(flatData))
       this.frames.push({
-        type: 0,  // Keyframe
+        type: 0,
         data: compressed
       })
       
-      // Deep copy for delta calculation
-      this.lastKeyframe = gridData.map(col => col.map(cell => [...cell]))
+      this.lastKeyframe = processedGrid.map(col => col.map(cell => [...cell]))
     } else {
-      // Encode as delta frame
-      const deltaData = calculateDelta(this.lastKeyframe, gridData, cellSize)
+      const deltaData = calculateDelta(this.lastKeyframe, processedGrid, cellSize)
       
       if (deltaData.length === 0) {
-        // No changes - store empty delta
         this.frames.push({
           type: 1,
-          data: new Uint8Array([0, 0])  // 0 changes
+          data: new Uint8Array([0, 0])
         })
       } else {
-        // Store change count + changes
         const changeCount = deltaData.length / (2 + cellSize)
         const header = new Uint8Array([
           (changeCount >> 8) & 0xFF,
           changeCount & 0xFF
         ])
         
-        const compressed = rleEncode(new Uint8Array(deltaData))
+        const compressed = compress(new Uint8Array(deltaData))
         const combined = new Uint8Array(header.length + compressed.length)
         combined.set(header)
         combined.set(compressed, header.length)
         
         this.frames.push({
-          type: 1,  // Delta
+          type: 1,
           data: combined
         })
       }
       
       for (let x = 0; x < this.width; x++) {
         for (let y = 0; y < this.height; y++) {
-          if (gridData[x]?.[y]) {
-            this.lastKeyframe[x][y] = [...gridData[x][y]]
+          if (processedGrid[x]?.[y]) {
+            this.lastKeyframe[x][y] = [...processedGrid[x][y]]
           }
         }
       }
@@ -206,14 +223,8 @@ export class TXAEncoder {
     this.frameCount++
   }
   
-  /**
-   * Build color palette for gradient mode
-   * Called automatically during encode() if colorMode is 0
-   */
   buildColorPalette(colorDark, colorLight) {
     this.colorPalette = []
-    
-    // Generate 256 colors for full luminance range
     for (let i = 0; i < 256; i++) {
       const t = i / 255
       const r = Math.round(colorDark[0] + (colorLight[0] - colorDark[0]) * t)
@@ -223,25 +234,17 @@ export class TXAEncoder {
     }
   }
   
-  /**
-   * Set custom color palette for fullcolor mode
-   */
   setColorPalette(colors) {
     this.colorPalette = colors.map(c => [...c])
   }
   
-  /**
-   * Encode all frames to TXA binary format
-   * @returns {ArrayBuffer} - The encoded TXA file
-   */
   encode() {
-    // Calculate total size
-    let totalSize = 32  // Header
-    totalSize += this.characters.length  // Character palette
-    totalSize += this.colorPalette.length * 3  // Color palette
+    let totalSize = 32
+    totalSize += this.characters.length
+    totalSize += this.colorPalette.length * 3
     
     for (const frame of this.frames) {
-      totalSize += 5 + frame.data.length  // Type (1) + Size (4) + Data
+      totalSize += 5 + frame.data.length
     }
     
     const buffer = new ArrayBuffer(totalSize)
@@ -249,77 +252,56 @@ export class TXAEncoder {
     const bytes = new Uint8Array(buffer)
     let offset = 0
     
-    // Write header
-    // Magic "TXA\0"
-    bytes[offset++] = 0x54  // T
-    bytes[offset++] = 0x58  // X
-    bytes[offset++] = 0x41  // A
-    bytes[offset++] = 0x00  // \0
+    bytes[offset++] = 0x54
+    bytes[offset++] = 0x58
+    bytes[offset++] = 0x41
+    bytes[offset++] = 0x00
     
-    // Version
     bytes[offset++] = TXA_VERSION
-    
-    // ColorMode
     bytes[offset++] = this.colorMode
     
-    // Width (uint16 LE)
     view.setUint16(offset, this.width, true)
     offset += 2
     
-    // Height (uint16 LE)
     view.setUint16(offset, this.height, true)
     offset += 2
     
-    // FPS
     bytes[offset++] = this.fps
     
-    // TotalFrames (uint32 LE)
     view.setUint32(offset, this.frames.length, true)
     offset += 4
     
-    // CharCount
     bytes[offset++] = this.characters.length
     
-    // ColorCount (uint16 LE)
     view.setUint16(offset, this.colorPalette.length, true)
     offset += 2
     
-    // BgColor (3 bytes RGB)
     bytes[offset++] = this.bgColor[0]
     bytes[offset++] = this.bgColor[1]
     bytes[offset++] = this.bgColor[2]
     
-    // ChangeSpeed (1 byte, 0.1 precision: value * 10)
     bytes[offset++] = Math.round(this.changeSpeed * 10)
-    
-    // CanvasRatio (1 byte: 0=free, 1=16:9, 2=4:3, 3=1:1, 4=9:16, 5=3:4)
     bytes[offset++] = this.canvasRatio
+    bytes[offset++] = this.lumBits
     
-    // Reserved (9 bytes)
-    offset += 9
+    offset += 8
     
-    // Write character palette
     for (let i = 0; i < this.characters.length; i++) {
       bytes[offset++] = this.characters.charCodeAt(i)
     }
     
-    // Write color palette
     for (const color of this.colorPalette) {
       bytes[offset++] = color[0]
       bytes[offset++] = color[1]
       bytes[offset++] = color[2]
     }
     
-    // Write frames
     for (const frame of this.frames) {
-      // Frame type
       bytes[offset++] = frame.type
       
-      // Data size (uint32 LE)
       view.setUint32(offset, frame.data.length, true)
       offset += 4
       
-      // Data
       bytes.set(frame.data, offset)
       offset += frame.data.length
     }
@@ -327,25 +309,19 @@ export class TXAEncoder {
     return buffer
   }
   
-  /**
-   * Reset encoder state for new recording
-   */
   reset() {
     this.frames = []
     this.lastKeyframe = null
     this.frameCount = 0
   }
   
-  /**
-   * Get encoding statistics
-   */
   getStats() {
     let totalUncompressed = 0
     let totalCompressed = 0
     let keyframes = 0
     let deltaFrames = 0
     
-    const cellSize = this.colorMode === 0 ? 2 : 4
+    const cellSize = this.colorMode === 0 ? 1 : 3
     const frameSize = this.width * this.height * cellSize
     
     for (const frame of this.frames) {
@@ -354,7 +330,7 @@ export class TXAEncoder {
         totalUncompressed += frameSize
       } else {
         deltaFrames++
-        totalUncompressed += frameSize  // Worst case
+        totalUncompressed += frameSize
       }
       totalCompressed += frame.data.length
     }

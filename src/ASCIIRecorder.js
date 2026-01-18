@@ -12,6 +12,7 @@ export class ASCIIRecorder {
     this.colorMode = options.colorMode || 0
     this.changeSpeed = options.changeSpeed || 2.0
     this.canvasRatio = options.canvasRatio || 0
+    this.lumBits = options.lumBits || 8
     
     this.encoder = null
     this.isRecording = false
@@ -56,7 +57,8 @@ export class ASCIIRecorder {
         Math.round(bgColor.b * 255)
       ],
       changeSpeed: this.changeSpeed,
-      canvasRatio: this.canvasRatio
+      canvasRatio: this.canvasRatio,
+      lumBits: this.lumBits
     })
     
     if (this.colorMode === 0) {
@@ -129,7 +131,6 @@ export class ASCIIRecorder {
 
   extractGridData(pixelData, canvasWidth, canvasHeight, gridWidth, gridHeight, cellSize) {
     const grid = []
-    const allChars = this.asciiEffect._backgroundChar + this.asciiEffect._patternChars
     
     for (let gx = 0; gx < gridWidth; gx++) {
       grid[gx] = []
@@ -145,20 +146,11 @@ export class ASCIIRecorder {
         const g = pixelData[pixelIndex + 1]
         const b = pixelData[pixelIndex + 2]
         
-        const luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
-        
-        let charIndex = 0
-        if (luminance > 12) {
-          const patternCount = allChars.length - 1
-          if (patternCount > 0) {
-            charIndex = 1 + Math.floor(Math.random() * patternCount)
-          }
-        }
-        
         if (this.colorMode === 0) {
-          grid[gx][gy] = [charIndex, luminance]
+          const luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
+          grid[gx][gy] = [luminance]
         } else {
-          grid[gx][gy] = [charIndex, r, g, b]
+          grid[gx][gy] = [r, g, b]
         }
       }
     }
