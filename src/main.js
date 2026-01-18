@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { EffectComposer, RenderPass, EffectPass } from 'postprocessing'
 import { ASCIIEffect } from './ASCIIEffect.js'
+import { ASCIIRecorder } from './ASCIIRecorder.js'
+import { ASCIIPlayer } from './ASCIIPlayer.js'
 
 class ASCIICraft {
   constructor() {
@@ -18,8 +20,14 @@ class ASCIICraft {
     this.videoElement = null
     this.webcamStream = null
     
+    this.recorder = null
+    this.player = null
+    this.isPlayerMode = false
+    
     this.init()
     this.setupControls()
+    this.setupRecordingControls()
+    this.setupPlayerControls()
     this.setupDragDrop()
     this.animate()
   }
@@ -36,7 +44,8 @@ class ASCIICraft {
     
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,
-      powerPreference: 'high-performance'
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true
     })
     this.renderer.setSize(width, height)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -97,29 +106,52 @@ class ASCIICraft {
   setupMediaScene(texture) {
     this.clearScene()
     
+    this.mediaTexture = texture
     const image = texture.image
-    const width = image.videoWidth || image.width
-    const height = image.videoHeight || image.height
+    const mediaWidth = image.videoWidth || image.width
+    const mediaHeight = image.videoHeight || image.height
     
-    if (!width || !height) {
+    if (!mediaWidth || !mediaHeight) {
       console.warn('Media dimensions not available yet')
       return
     }
     
-    const aspectRatio = width / height
-    const screenAspect = window.innerWidth / window.innerHeight
+    this.updateMediaPlane()
+  }
+  
+  updateMediaPlane() {
+    if (!this.mediaTexture) return
     
-    let planeWidth = 2
-    let planeHeight = 2
+    const image = this.mediaTexture.image
+    const mediaWidth = image.videoWidth || image.width
+    const mediaHeight = image.videoHeight || image.height
     
-    if (aspectRatio > screenAspect) {
-      planeHeight = planeWidth / aspectRatio * screenAspect
+    if (!mediaWidth || !mediaHeight) return
+    
+    if (this.mediaPlane) {
+      this.scene.remove(this.mediaPlane)
+      this.mediaPlane.geometry.dispose()
+      this.mediaPlane.material.dispose()
+    }
+    
+    const canvasWidth = this.renderer.domElement.width
+    const canvasHeight = this.renderer.domElement.height
+    
+    const mediaRatio = mediaWidth / mediaHeight
+    const canvasRatio = canvasWidth / canvasHeight
+    
+    let planeWidth, planeHeight
+    
+    if (mediaRatio > canvasRatio) {
+      planeWidth = 2
+      planeHeight = 2 * canvasRatio / mediaRatio
     } else {
-      planeWidth = planeHeight * aspectRatio / screenAspect
+      planeHeight = 2
+      planeWidth = 2 * mediaRatio / canvasRatio
     }
     
     const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight)
-    const material = new THREE.MeshBasicMaterial({ map: texture })
+    const material = new THREE.MeshBasicMaterial({ map: this.mediaTexture })
     this.mediaPlane = new THREE.Mesh(geometry, material)
     this.scene.add(this.mediaPlane)
     
@@ -143,6 +175,7 @@ class ASCIICraft {
     
     this.demoCube = null
     this.mediaPlane = null
+    this.mediaTexture = null
   }
   
   loadImage(file) {
@@ -286,6 +319,7 @@ class ASCIICraft {
     const fileInput = document.getElementById('file-input')
     const targetFpsInput = document.getElementById('target-fps')
     const cellSizeInput = document.getElementById('cell-size')
+    const canvasRatioSelect = document.getElementById('canvas-ratio')
     const fontFamilySelect = document.getElementById('font-family')
     const bgCharInput = document.getElementById('bg-char')
     const patternCharsInput = document.getElementById('pattern-chars')
@@ -304,6 +338,8 @@ class ASCIICraft {
     
     const invertInput = document.getElementById('invert')
     const colorModeInput = document.getElementById('color-mode')
+    
+    this.canvasRatio = 0
     
     sourceSelect.addEventListener('change', (e) => {
       this.setSource(e.target.value)
@@ -330,6 +366,11 @@ class ASCIICraft {
       const value = parseInt(e.target.value)
       this.asciiEffect.cellSize = value
       document.getElementById('cell-size-value').textContent = value
+    })
+    
+    canvasRatioSelect.addEventListener('change', (e) => {
+      this.canvasRatio = parseInt(e.target.value)
+      this.applyCanvasRatio()
     })
     
     fontFamilySelect.addEventListener('change', (e) => {
@@ -407,6 +448,152 @@ class ASCIICraft {
     })
   }
   
+  setupRecordingControls() {
+    const recordFpsInput = document.getElementById('record-fps')
+    const recordMaxFramesInput = document.getElementById('record-max-frames')
+    const recordBtn = document.getElementById('record-btn')
+    const recordStatus = document.getElementById('record-status')
+    const recordTime = document.getElementById('record-time')
+    const recordFrames = document.getElementById('record-frames')
+    const recordMaxDisplay = document.getElementById('record-max-display')
+    const durationPreview = document.getElementById('record-duration-preview')
+    
+    let recordFps = 30
+    let maxFrames = 300
+    
+    const updateDurationPreview = () => {
+      const duration = maxFrames / recordFps
+      durationPreview.textContent = duration.toFixed(1) + 's'
+    }
+    
+    recordFpsInput.addEventListener('input', (e) => {
+      recordFps = parseInt(e.target.value)
+      document.getElementById('record-fps-value').textContent = recordFps
+      updateDurationPreview()
+    })
+    
+    recordMaxFramesInput.addEventListener('input', (e) => {
+      maxFrames = parseInt(e.target.value)
+      document.getElementById('record-max-frames-value').textContent = maxFrames
+      updateDurationPreview()
+    })
+    
+    recordBtn.addEventListener('click', () => {
+      if (this.recorder && this.recorder.isRecording) {
+        const stats = this.recorder.downloadTXA(`ascii-${Date.now()}.txa`)
+        recordBtn.textContent = 'Start Recording'
+        recordStatus.style.display = 'none'
+        console.log('Recording stats:', stats)
+      } else {
+        recordMaxDisplay.textContent = maxFrames
+        
+        this.recorder = new ASCIIRecorder({
+          renderer: this.renderer,
+          asciiEffect: this.asciiEffect,
+          scene: this.scene,
+          camera: this.camera,
+          fps: recordFps,
+          maxFrames: maxFrames,
+          colorMode: this.asciiEffect.colorMode ? 1 : 0,
+          changeSpeed: this.asciiEffect.changeSpeed,
+          canvasRatio: this.canvasRatio,
+          onFrame: ({ frame, elapsed }) => {
+            recordTime.textContent = (elapsed / 1000).toFixed(1) + 's'
+            recordFrames.textContent = frame
+          },
+          onComplete: () => {
+            const stats = this.recorder.downloadTXA(`ascii-${Date.now()}.txa`)
+            recordBtn.textContent = 'Start Recording'
+            recordStatus.style.display = 'none'
+            console.log('Recording stats:', stats)
+          }
+        })
+        
+        this.recorder.start()
+        recordBtn.textContent = 'Stop & Download'
+        recordStatus.style.display = 'block'
+      }
+    })
+  }
+  
+  setupPlayerControls() {
+    const txaInput = document.getElementById('txa-input')
+    const playerCanvas = document.getElementById('player-canvas')
+    const playerControls = document.getElementById('player-controls')
+    const playerSeek = document.getElementById('player-seek')
+    const playerTime = document.getElementById('player-time')
+    const playerPlayBtn = document.getElementById('player-play')
+    const playerStopBtn = document.getElementById('player-stop')
+    const playerCloseBtn = document.getElementById('player-close')
+    
+    this.player = new ASCIIPlayer(playerCanvas, {
+      cellSize: this.asciiEffect.cellSize,
+      fontFamily: this.asciiEffect._fontFamily,
+      bgColor: '#000000',
+      onFrameChange: (frame) => {
+        const current = this.player.currentTime
+        const total = this.player.duration
+        playerSeek.value = this.player.progress * 100
+        playerTime.textContent = `${this.formatTime(current)} / ${this.formatTime(total)}`
+      },
+      onPlayStateChange: (playing) => {
+        playerPlayBtn.textContent = playing ? 'Pause' : 'Play'
+      }
+    })
+    
+    txaInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      
+      await this.player.loadFromFile(file)
+      this.showPlayer()
+    })
+    
+    playerSeek.addEventListener('input', (e) => {
+      const progress = parseFloat(e.target.value) / 100
+      const frame = Math.floor(progress * this.player.totalFrames)
+      this.player.seek(frame)
+    })
+    
+    playerPlayBtn.addEventListener('click', () => {
+      this.player.toggle()
+    })
+    
+    playerStopBtn.addEventListener('click', () => {
+      this.player.stop()
+    })
+    
+    playerCloseBtn.addEventListener('click', () => {
+      this.hidePlayer()
+    })
+  }
+  
+  showPlayer() {
+    const playerCanvas = document.getElementById('player-canvas')
+    const playerControls = document.getElementById('player-controls')
+    
+    playerCanvas.style.display = 'block'
+    playerControls.style.display = 'block'
+    this.isPlayerMode = true
+    this.player.play()
+  }
+  
+  hidePlayer() {
+    const playerCanvas = document.getElementById('player-canvas')
+    const playerControls = document.getElementById('player-controls')
+    
+    this.player.stop()
+    playerCanvas.style.display = 'none'
+    playerControls.style.display = 'none'
+    this.isPlayerMode = false
+  }
+  
+  formatTime(seconds) {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+  
   setupDragDrop() {
     document.addEventListener('dragover', (e) => {
       e.preventDefault()
@@ -438,8 +625,37 @@ class ASCIICraft {
   }
   
   onResize() {
-    const width = window.innerWidth
-    const height = window.innerHeight
+    this.applyCanvasRatio()
+  }
+  
+  applyCanvasRatio() {
+    const maxWidth = window.innerWidth
+    const maxHeight = window.innerHeight
+    
+    let width = maxWidth
+    let height = maxHeight
+    
+    const ratios = {
+      0: null,
+      1: 16 / 9,
+      2: 4 / 3,
+      3: 1,
+      4: 9 / 16,
+      5: 3 / 4
+    }
+    
+    const targetRatio = ratios[this.canvasRatio]
+    
+    if (targetRatio) {
+      const currentRatio = maxWidth / maxHeight
+      if (currentRatio > targetRatio) {
+        width = Math.floor(maxHeight * targetRatio)
+        height = maxHeight
+      } else {
+        width = maxWidth
+        height = Math.floor(maxWidth / targetRatio)
+      }
+    }
     
     if (this.camera instanceof THREE.PerspectiveCamera) {
       this.camera.aspect = width / height
@@ -448,6 +664,15 @@ class ASCIICraft {
     
     this.renderer.setSize(width, height)
     this.composer.setSize(width, height)
+    
+    this.container.style.width = width + 'px'
+    this.container.style.height = height + 'px'
+    this.container.style.left = ((maxWidth - width) / 2) + 'px'
+    this.container.style.top = ((maxHeight - height) / 2) + 'px'
+    
+    if (this.mediaTexture) {
+      this.updateMediaPlane()
+    }
   }
   
   updateFPS() {

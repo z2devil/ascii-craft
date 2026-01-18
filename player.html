@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TXA Player</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #player-canvas {
+      background: #000;
+    }
+    
+    .controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      color: #fff;
+      z-index: 100;
+      min-width: 280px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      backdrop-filter: blur(10px);
+    }
+    
+    .controls h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #0f0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .controls h3 {
+      font-size: 11px;
+      font-weight: 600;
+      margin: 20px 0 12px 0;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .control-group {
+      margin-bottom: 16px;
+    }
+    
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+    
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 6px;
+    }
+    
+    .control-group input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      outline: none;
+    }
+    
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #0f0;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    .control-group input[type="color"] {
+      width: 100%;
+      height: 36px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: transparent;
+    }
+    
+    .control-group input[type="text"] {
+      width: 100%;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #fff;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    
+    .control-group select {
+      width: 100%;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    
+    .control-group select option {
+      background: #111;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      background: rgba(0, 255, 0, 0.1);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      border-radius: 6px;
+      color: #0f0;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      background: rgba(0, 255, 0, 0.2);
+      border-color: #0f0;
+    }
+    
+    .file-input-wrapper {
+      position: relative;
+    }
+    
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    
+    .value-display {
+      font-size: 11px;
+      color: #0f0;
+      float: right;
+    }
+    
+    .stats {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 100;
+    }
+    
+    .color-row {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .color-row .control-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    
+    .color-row input[type="color"] {
+      height: 32px;
+    }
+    
+    .playback-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .playback-controls button {
+      flex: 1;
+      padding: 10px;
+      background: rgba(0, 255, 0, 0.1);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      border-radius: 6px;
+      color: #0f0;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .playback-controls button:hover {
+      background: rgba(0, 255, 0, 0.2);
+    }
+    
+    .playback-controls button.primary {
+      background: #0f0;
+      color: #000;
+    }
+    
+    .playback-controls button.primary:hover {
+      background: #0c0;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: #0f0;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.1s;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 11px;
+    }
+    
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .info-item .label {
+      color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .info-item .value {
+      color: #0f0;
+      font-family: monospace;
+    }
+    
+    .drop-zone {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 255, 0, 0.1);
+      border: 3px dashed #0f0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      pointer-events: none;
+    }
+    
+    .drop-zone.active {
+      display: flex;
+    }
+    
+    .drop-zone-text {
+      font-size: 24px;
+      color: #0f0;
+      font-weight: 600;
+    }
+    
+    .upload-prompt {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 18px;
+    }
+    
+    .upload-prompt.hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container">
+    <canvas id="player-canvas"></canvas>
+  </div>
+  
+  <div class="upload-prompt" id="upload-prompt">
+    Drop a .txa file or use the panel to load
+  </div>
+  
+  <div class="controls">
+    <h2>TXA Player</h2>
+    
+    <div class="control-group file-input-wrapper">
+      <input type="file" id="file-input" accept=".txa">
+      <button class="btn">Load .txa File</button>
+    </div>
+    
+    <div class="control-group">
+      <a href="/" class="btn" style="display: block; text-align: center; text-decoration: none;">← Back to Editor</a>
+    </div>
+    
+    <div id="player-controls" style="display: none;">
+      <h3>Playback</h3>
+      
+      <div class="playback-controls">
+        <button id="btn-stop" title="Stop">⏹</button>
+        <button id="btn-play" class="primary" title="Play/Pause">▶</button>
+      </div>
+      
+      <div class="control-group">
+        <div class="progress-bar" id="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <label>Progress <span class="value-display" id="player-time">0:00 / 0:00</span></label>
+      </div>
+      
+      <h3>File Info</h3>
+      
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="label">Resolution</span>
+          <span class="value" id="info-resolution">-</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Duration</span>
+          <span class="value" id="info-duration">-</span>
+        </div>
+        <div class="info-item">
+          <span class="label">FPS</span>
+          <span class="value" id="info-fps">-</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Frames</span>
+          <span class="value" id="info-frames">-</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Color Mode</span>
+          <span class="value" id="info-colormode">-</span>
+        </div>
+      </div>
+      
+      <h3>Display</h3>
+      
+      <div class="control-group">
+        <label>Canvas Ratio</label>
+        <select id="canvas-ratio">
+          <option value="0">Free (Window)</option>
+          <option value="1">16:9</option>
+          <option value="2">4:3</option>
+          <option value="3">1:1</option>
+          <option value="4">9:16</option>
+          <option value="5">3:4</option>
+        </select>
+      </div>
+      
+      <div class="control-group">
+        <label>Render Scale <span class="value-display" id="scale-value">100</span>%</label>
+        <input type="range" id="render-scale" min="25" max="200" value="100" step="25">
+      </div>
+      
+      <div class="control-group">
+        <label>Change Speed <span class="value-display" id="change-speed-value">2.0</span></label>
+        <input type="range" id="change-speed" min="0" max="20" value="2" step="0.5">
+      </div>
+      
+      <div class="control-group">
+        <label>Font Family</label>
+        <select id="font-family">
+          <option value="monospace">Monospace</option>
+          <option value="Courier New, Courier, monospace">Courier New</option>
+          <option value="Consolas, monospace">Consolas</option>
+          <option value="Monaco, monospace">Monaco</option>
+          <option value="Menlo, monospace">Menlo</option>
+        </select>
+      </div>
+      
+      <div class="control-group">
+        <label>Characters</label>
+        <input type="text" id="chars-input" value=" 0123456789ABCDEF">
+      </div>
+      
+      <h3>Color</h3>
+      
+      <div class="color-row">
+        <div class="control-group">
+          <label>Dark</label>
+          <input type="color" id="color-dark" value="#003300">
+        </div>
+        <div class="control-group">
+          <label>Light</label>
+          <input type="color" id="color-light" value="#00ff00">
+        </div>
+      </div>
+      
+      <div class="control-group">
+        <label>Background</label>
+        <input type="color" id="bg-color" value="#000000">
+      </div>
+      
+      <div class="control-group">
+        <button class="btn" id="btn-reset">Reset to File Settings</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="stats" id="stats">-</div>
+  
+  <div class="drop-zone" id="drop-zone">
+    <span class="drop-zone-text">Drop .txa file here</span>
+  </div>
+  
+  <script type="module">
+    import { ASCIIPlayer } from './src/ASCIIPlayer.js'
+    
+    const container = document.getElementById('canvas-container')
+    const canvas = document.getElementById('player-canvas')
+    const uploadPrompt = document.getElementById('upload-prompt')
+    const playerControls = document.getElementById('player-controls')
+    const dropZone = document.getElementById('drop-zone')
+    const stats = document.getElementById('stats')
+    
+    const fileInput = document.getElementById('file-input')
+    const btnPlay = document.getElementById('btn-play')
+    const btnStop = document.getElementById('btn-stop')
+    const btnReset = document.getElementById('btn-reset')
+    const progressBar = document.getElementById('progress-bar')
+    const progressFill = document.getElementById('progress-fill')
+    const playerTime = document.getElementById('player-time')
+    
+    const canvasRatioSelect = document.getElementById('canvas-ratio')
+    const renderScaleInput = document.getElementById('render-scale')
+    const changeSpeedInput = document.getElementById('change-speed')
+    const fontFamilySelect = document.getElementById('font-family')
+    const charsInput = document.getElementById('chars-input')
+    const bgColorInput = document.getElementById('bg-color')
+    const colorDarkInput = document.getElementById('color-dark')
+    const colorLightInput = document.getElementById('color-light')
+    
+    let player = null
+    let originalSettings = {}
+    
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60)
+      const secs = Math.floor(seconds % 60)
+      return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+    
+    function rgbToHex(rgb) {
+      return '#' + rgb.map(c => c.toString(16).padStart(2, '0')).join('')
+    }
+    
+    function updateInfo() {
+      document.getElementById('info-resolution').textContent = `${player.width}×${player.height}`
+      document.getElementById('info-duration').textContent = formatTime(player.duration)
+      document.getElementById('info-fps').textContent = player.fps
+      document.getElementById('info-frames').textContent = player.totalFrames
+      document.getElementById('info-colormode').textContent = player.decoder.colorMode === 0 ? 'Gradient' : 'Full Color'
+      stats.textContent = `${player.width}×${player.height} @ ${player.fps}fps`
+    }
+    
+    function loadSettingsFromFile() {
+      const bg = player.decoder.bgColor
+      const palette = player.decoder.colorPalette
+      const chars = player.decoder.characters
+      const changeSpeed = player.decoder.changeSpeed
+      const canvasRatio = player.decoder.canvasRatio
+      
+      originalSettings = {
+        bgColor: rgbToHex(bg),
+        colorDark: palette.length > 0 ? rgbToHex(palette[0]) : '#003300',
+        colorLight: palette.length > 0 ? rgbToHex(palette[palette.length - 1]) : '#00ff00',
+        characters: chars,
+        renderScale: 100,
+        changeSpeed: changeSpeed,
+        canvasRatio: canvasRatio,
+        fontFamily: 'monospace'
+      }
+      
+      applySettings(originalSettings)
+    }
+    
+    function applySettings(settings) {
+      bgColorInput.value = settings.bgColor
+      colorDarkInput.value = settings.colorDark
+      colorLightInput.value = settings.colorLight
+      charsInput.value = settings.characters
+      renderScaleInput.value = settings.renderScale
+      document.getElementById('scale-value').textContent = settings.renderScale
+      changeSpeedInput.value = settings.changeSpeed
+      document.getElementById('change-speed-value').textContent = settings.changeSpeed.toFixed(1)
+      canvasRatioSelect.value = settings.canvasRatio
+      fontFamilySelect.value = settings.fontFamily
+      
+      if (player) {
+        player.setBgColor(settings.bgColor)
+        player.setColors(settings.colorDark, settings.colorLight)
+        player.setCharacters(settings.characters)
+        player.setCanvasRatio(settings.canvasRatio)
+        player.setRenderScale(settings.renderScale / 100)
+        player.setChangeSpeed(settings.changeSpeed)
+        player.setFontFamily(settings.fontFamily)
+      }
+    }
+    
+    async function loadFile(file) {
+      if (!file || !file.name.endsWith('.txa')) {
+        alert('Please select a valid .txa file')
+        return
+      }
+      
+      player = new ASCIIPlayer(canvas, {
+        onFrameChange: () => {
+          progressFill.style.width = `${player.progress * 100}%`
+          playerTime.textContent = `${formatTime(player.currentTime)} / ${formatTime(player.duration)}`
+        },
+        onPlayStateChange: (playing) => {
+          btnPlay.textContent = playing ? '⏸' : '▶'
+          btnPlay.classList.toggle('primary', !playing)
+        }
+      })
+      
+      await player.loadFromFile(file)
+      window.player = player
+      
+      uploadPrompt.classList.add('hidden')
+      playerControls.style.display = 'block'
+      
+      updateInfo()
+      loadSettingsFromFile()
+      player.play()
+    }
+    
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) {
+        loadFile(e.target.files[0])
+      }
+    })
+    
+    document.addEventListener('dragover', (e) => {
+      e.preventDefault()
+      dropZone.classList.add('active')
+    })
+    
+    document.addEventListener('dragleave', (e) => {
+      if (e.relatedTarget === null) {
+        dropZone.classList.remove('active')
+      }
+    })
+    
+    document.addEventListener('drop', (e) => {
+      e.preventDefault()
+      dropZone.classList.remove('active')
+      const file = e.dataTransfer.files[0]
+      if (file && file.name.endsWith('.txa')) {
+        loadFile(file)
+      }
+    })
+    
+    btnPlay.addEventListener('click', () => player?.toggle())
+    btnStop.addEventListener('click', () => player?.stop())
+    btnReset.addEventListener('click', () => applySettings(originalSettings))
+    
+    progressBar.addEventListener('click', (e) => {
+      if (!player) return
+      const rect = progressBar.getBoundingClientRect()
+      const progress = (e.clientX - rect.left) / rect.width
+      const frame = Math.floor(progress * player.totalFrames)
+      player.seek(frame)
+    })
+    
+    canvasRatioSelect.addEventListener('change', (e) => {
+      player?.setCanvasRatio(parseInt(e.target.value))
+    })
+    
+    renderScaleInput.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value)
+      document.getElementById('scale-value').textContent = value
+      player?.setRenderScale(value / 100)
+    })
+    
+    changeSpeedInput.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value)
+      document.getElementById('change-speed-value').textContent = value.toFixed(1)
+      player?.setChangeSpeed(value)
+    })
+    
+    fontFamilySelect.addEventListener('change', (e) => {
+      player?.setFontFamily(e.target.value)
+    })
+    
+    charsInput.addEventListener('change', (e) => {
+      player?.setCharacters(e.target.value)
+    })
+    
+    bgColorInput.addEventListener('input', (e) => {
+      player?.setBgColor(e.target.value)
+    })
+    
+    colorDarkInput.addEventListener('input', () => {
+      player?.setColors(colorDarkInput.value, colorLightInput.value)
+    })
+    
+    colorLightInput.addEventListener('input', () => {
+      player?.setColors(colorDarkInput.value, colorLightInput.value)
+    })
+  </script>
+</body>
+</html>

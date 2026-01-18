@@ -263,6 +263,18 @@
     </div>
     
     <div class="control-group">
+      <label>Canvas Ratio</label>
+      <select id="canvas-ratio">
+        <option value="0">Free (Window)</option>
+        <option value="1">16:9</option>
+        <option value="2">4:3</option>
+        <option value="3">1:1</option>
+        <option value="4">9:16</option>
+        <option value="5">3:4</option>
+      </select>
+    </div>
+    
+    <div class="control-group">
       <label>Font Family</label>
       <select id="font-family">
         <option value="monospace">Monospace</option>
@@ -351,9 +363,58 @@
         <input type="checkbox" id="color-mode"> Color Mode
       </label>
     </div>
+    
+    <h3>Recording</h3>
+    
+    <div class="control-group">
+      <label>Record FPS <span class="value-display" id="record-fps-value">30</span></label>
+      <input type="range" id="record-fps" min="1" max="60" value="30" step="1">
+    </div>
+    
+    <div class="control-group">
+      <label>Max Frames <span class="value-display" id="record-max-frames-value">300</span> (<span id="record-duration-preview">10.0s</span>)</label>
+      <input type="range" id="record-max-frames" min="30" max="1800" value="300" step="30">
+    </div>
+    
+    <div class="control-group">
+      <button class="btn" id="record-btn">Start Recording</button>
+    </div>
+    
+    <div class="control-group" id="record-status" style="display: none;">
+      <label>Recording: <span id="record-time">0.0s</span> | <span id="record-frames">0</span> / <span id="record-max-display">300</span> frames</label>
+    </div>
+    
+    <h3>Playback</h3>
+    
+    <div class="control-group file-input-wrapper">
+      <input type="file" id="txa-input" accept=".txa">
+      <button class="btn">Load .txa File</button>
+    </div>
+    
+    <div class="control-group">
+      <a href="/player.html" class="btn" style="display: block; text-align: center; text-decoration: none;">Open Player Page →</a>
+    </div>
+    
+    <div id="player-controls" style="display: none;">
+      <div class="control-group">
+        <label>Progress <span class="value-display" id="player-time">0:00 / 0:00</span></label>
+        <input type="range" id="player-seek" min="0" max="100" value="0" step="0.1">
+      </div>
+      
+      <div class="control-group" style="display: flex; gap: 8px;">
+        <button class="btn" id="player-play" style="flex: 1;">Play</button>
+        <button class="btn" id="player-stop" style="flex: 1;">Stop</button>
+      </div>
+      
+      <div class="control-group">
+        <button class="btn" id="player-close">Close Player</button>
+      </div>
+    </div>
   </div>
   
   <div class="stats" id="stats">FPS: --</div>
+  
+  <canvas id="player-canvas" style="display: none; position: fixed; inset: 0; width: 100%; height: 100%; z-index: 50;"></canvas>
   
   <div class="drop-zone" id="drop-zone">
     <span class="drop-zone-text">Drop image or video here</span>
