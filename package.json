@@ -13,7 +13,14 @@
   "bugs": {
     "url": "https://github.com/z2devil/ascii-craft/issues"
   },
-  "keywords": ["ascii", "ascii-art", "animation", "txa", "web-component", "player"],
+  "keywords": [
+    "ascii",
+    "ascii-art",
+    "animation",
+    "txa",
+    "web-component",
+    "player"
+  ],
   "main": "./dist-lib/ascii-craft.umd.js",
   "module": "./dist-lib/ascii-craft.mjs",
   "types": "./dist-lib/ascii-craft.d.mts",
@@ -38,13 +45,17 @@
     "dev": "vite",
     "build": "vite build",
     "build:lib": "vite build --config vite.lib.config.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset version && npm run build:lib"
   },
   "dependencies": {
     "postprocessing": "^6.36.4",
     "three": "^0.170.0"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "@types/three": "^0.182.0",
     "typescript": "^5.9.3",
     "vite": "^6.0.7",
