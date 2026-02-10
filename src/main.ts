@@ -1,7 +1,6 @@
 import { EffectComposer, EffectPass, RenderPass } from "postprocessing";
 import * as THREE from "three";
 import { ASCIIEffect } from "./ASCIIEffect";
-import { ASCIIPlayer } from "./ASCIIPlayer";
 import { ASCIIRecorder, type ASCIIRecorderOptions } from "./ASCIIRecorder";
 
 class ASCIICraft {
@@ -17,8 +16,6 @@ class ASCIICraft {
   videoElement: HTMLVideoElement | null;
   webcamStream: MediaStream | null;
   recorder: ASCIIRecorder | null;
-  player: ASCIIPlayer | null;
-  isPlayerMode: boolean;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
   renderer: THREE.WebGLRenderer;
@@ -45,8 +42,6 @@ class ASCIICraft {
     this.webcamStream = null;
 
     this.recorder = null;
-    this.player = null;
-    this.isPlayerMode = false;
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
@@ -61,7 +56,6 @@ class ASCIICraft {
     this.init();
     this.setupControls();
     this.setupRecordingControls();
-    this.setupPlayerControls();
     this.setupDragDrop();
     this.animate();
   }
@@ -581,84 +575,6 @@ class ASCIICraft {
         recordStatus.style.display = "block";
       }
     });
-  }
-
-  setupPlayerControls() {
-    const txaInput = document.getElementById("txa-input")!;
-    const playerCanvas = document.getElementById("player-canvas")! as HTMLCanvasElement;
-    const _playerControls = document.getElementById("player-controls")!;
-    const playerSeek = document.getElementById("player-seek")! as HTMLInputElement;
-    const playerTime = document.getElementById("player-time")!;
-    const playerPlayBtn = document.getElementById("player-play")!;
-    const playerStopBtn = document.getElementById("player-stop")!;
-    const playerCloseBtn = document.getElementById("player-close")!;
-
-    this.player = new ASCIIPlayer(playerCanvas, {
-      cellSize: this.asciiEffect.cellSize,
-      fontFamily: this.asciiEffect.fontFamily,
-      bgColor: "#000000",
-      onFrameChange: (_frame) => {
-        const current = this.player!.currentTime;
-        const total = this.player!.duration;
-        playerSeek.value = (this.player!.progress * 100).toString();
-        playerTime.textContent = `${this.formatTime(current)} / ${this.formatTime(total)}`;
-      },
-      onPlayStateChange: (playing) => {
-        playerPlayBtn.textContent = playing ? "Pause" : "Play";
-      },
-    });
-
-    txaInput.addEventListener("change", async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      await this.player?.loadFromFile(file);
-      this.showPlayer();
-    });
-
-    playerSeek.addEventListener("input", (e) => {
-      const progress = parseFloat((e.target as HTMLInputElement).value) / 100;
-      const frame = Math.floor(progress * this.player!.totalFrames);
-      this.player!.seek(frame);
-    });
-
-    playerPlayBtn.addEventListener("click", () => {
-      this.player?.toggle();
-    });
-
-    playerStopBtn.addEventListener("click", () => {
-      this.player?.stop();
-    });
-
-    playerCloseBtn.addEventListener("click", () => {
-      this.hidePlayer();
-    });
-  }
-
-  showPlayer() {
-    const playerCanvas = document.getElementById("player-canvas")!;
-    const playerControls = document.getElementById("player-controls")!;
-
-    playerCanvas.style.display = "block";
-    playerControls.style.display = "block";
-    this.isPlayerMode = true;
-    this.player?.play();
-  }
-
-  hidePlayer() {
-    const playerCanvas = document.getElementById("player-canvas")!;
-    const playerControls = document.getElementById("player-controls")!;
-
-    this.player?.stop();
-    playerCanvas.style.display = "none";
-    playerControls.style.display = "none";
-    this.isPlayerMode = false;
-  }
-
-  formatTime(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
   }
 
   setupDragDrop() {
