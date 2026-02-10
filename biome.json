@@ -1,0 +1,22 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        "noNonNullAssertion": "warn"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "files": {
+    "includes": ["**/src/**/*.ts", "!**/node_modules", "!**/dist", "!**/dist-lib", "!**/.changeset"]
+  }
+}
