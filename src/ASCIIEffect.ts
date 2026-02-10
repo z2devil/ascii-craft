@@ -1,12 +1,6 @@
-import {
-  CanvasTexture,
-  Color,
-  NearestFilter,
-  RepeatWrapping,
-  Uniform
-} from 'three'
-import type { WebGLRenderer, WebGLRenderTarget } from 'three'
-import { Effect } from 'postprocessing'
+import { Effect } from "postprocessing";
+import type { WebGLRenderer, WebGLRenderTarget } from "three";
+import { CanvasTexture, Color, NearestFilter, RepeatWrapping, Uniform } from "three";
 
 const fragmentShader = /* glsl */ `
 uniform sampler2D uCharacters;
@@ -125,76 +119,76 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec3 finalColor = mix(uBgColor, baseColor, alpha);
   outputColor = vec4(finalColor, 1.0);
 }
-`
+`;
 
 function createCharacterTexture(characters: string, cellSize: number, fontFamily: string): CanvasTexture {
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')!
-  
-  const charCount = characters.length
-  const size = Math.max(cellSize * 2, 32)
-  
-  canvas.width = size * charCount
-  canvas.height = size
-  
-  ctx.fillStyle = '#000'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  
-  ctx.font = `${size * 0.9}px ${fontFamily}`
-  ctx.fillStyle = '#fff'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+
+  const charCount = characters.length;
+  const size = Math.max(cellSize * 2, 32);
+
+  canvas.width = size * charCount;
+  canvas.height = size;
+
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.font = `${size * 0.9}px ${fontFamily}`;
+  ctx.fillStyle = "#fff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
   for (let i = 0; i < charCount; i++) {
-    const x = i * size + size / 2
-    const y = size / 2
-    ctx.fillText(characters[i], x, y)
+    const x = i * size + size / 2;
+    const y = size / 2;
+    ctx.fillText(characters[i], x, y);
   }
-  
-  const texture = new CanvasTexture(canvas)
-  texture.minFilter = NearestFilter
-  texture.magFilter = NearestFilter
-  texture.wrapS = RepeatWrapping
-  texture.wrapT = RepeatWrapping
-  texture.needsUpdate = true
-  
-  return texture
+
+  const texture = new CanvasTexture(canvas);
+  texture.minFilter = NearestFilter;
+  texture.magFilter = NearestFilter;
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.needsUpdate = true;
+
+  return texture;
 }
 
 export interface ASCIIEffectOptions {
-  backgroundChar?: string
-  patternChars?: string
-  cellSize?: number
-  fontFamily?: string
-  colorDark?: string
-  colorLight?: string
-  bgColor?: string
-  hueShift?: number
-  saturation?: number
-  invert?: boolean
-  colorMode?: boolean
-  changeSpeed?: number
-  inputBlack?: number
-  inputWhite?: number
-  gamma?: number
-  contrast?: number
+  backgroundChar?: string;
+  patternChars?: string;
+  cellSize?: number;
+  fontFamily?: string;
+  colorDark?: string;
+  colorLight?: string;
+  bgColor?: string;
+  hueShift?: number;
+  saturation?: number;
+  invert?: boolean;
+  colorMode?: boolean;
+  changeSpeed?: number;
+  inputBlack?: number;
+  inputWhite?: number;
+  gamma?: number;
+  contrast?: number;
 }
 
 export class ASCIIEffect extends Effect {
-  private _backgroundChar: string
-  private _patternChars: string
-  private _cellSize: number
-  private _fontFamily: string
-  private _charTexture: CanvasTexture
-  
+  private _backgroundChar: string;
+  private _patternChars: string;
+  private _cellSize: number;
+  private _fontFamily: string;
+  private _charTexture: CanvasTexture;
+
   constructor({
-    backgroundChar = ' ',
-    patternChars = '0123456789ABCDEF',
+    backgroundChar = " ",
+    patternChars = "0123456789ABCDEF",
     cellSize = 16,
-    fontFamily = 'monospace',
-    colorDark = '#003300',
-    colorLight = '#00ff00',
-    bgColor = '#000000',
+    fontFamily = "monospace",
+    colorDark = "#003300",
+    colorLight = "#00ff00",
+    bgColor = "#000000",
     hueShift = 0,
     saturation = 1,
     invert = false,
@@ -203,172 +197,172 @@ export class ASCIIEffect extends Effect {
     inputBlack = 0,
     inputWhite = 1,
     gamma = 1,
-    contrast = 1
+    contrast = 1,
   }: ASCIIEffectOptions = {}) {
-    const allChars = backgroundChar + patternChars
-    const charTexture = createCharacterTexture(allChars, cellSize, fontFamily)
-    const colorDarkObj = new Color(colorDark)
-    const colorLightObj = new Color(colorLight)
-    const bgColorObj = new Color(bgColor)
-    
-    super('ASCIIEffect', fragmentShader, {
+    const allChars = backgroundChar + patternChars;
+    const charTexture = createCharacterTexture(allChars, cellSize, fontFamily);
+    const colorDarkObj = new Color(colorDark);
+    const colorLightObj = new Color(colorLight);
+    const bgColorObj = new Color(bgColor);
+
+    super("ASCIIEffect", fragmentShader, {
       uniforms: new Map<string, Uniform>([
-        ['uCharacters', new Uniform(charTexture)],
-        ['uCharactersCount', new Uniform(allChars.length)],
-        ['uCellSize', new Uniform(cellSize)],
-        ['uInvert', new Uniform(invert)],
-        ['uColorMode', new Uniform(colorMode)],
-        ['uColorDark', new Uniform(colorDarkObj)],
-        ['uColorLight', new Uniform(colorLightObj)],
-        ['uBgColor', new Uniform(bgColorObj)],
-        ['uHueShift', new Uniform(hueShift)],
-        ['uSaturation', new Uniform(saturation)],
-        ['uTime', new Uniform(0)],
-        ['uChangeSpeed', new Uniform(changeSpeed)],
-        ['uBgCharIndex', new Uniform(0)],
-        ['uInputBlack', new Uniform(inputBlack)],
-        ['uInputWhite', new Uniform(inputWhite)],
-        ['uGamma', new Uniform(gamma)],
-        ['uContrast', new Uniform(contrast)]
-      ])
-    })
-    
-    this._backgroundChar = backgroundChar
-    this._patternChars = patternChars
-    this._cellSize = cellSize
-    this._fontFamily = fontFamily
-    this._charTexture = charTexture
+        ["uCharacters", new Uniform(charTexture)],
+        ["uCharactersCount", new Uniform(allChars.length)],
+        ["uCellSize", new Uniform(cellSize)],
+        ["uInvert", new Uniform(invert)],
+        ["uColorMode", new Uniform(colorMode)],
+        ["uColorDark", new Uniform(colorDarkObj)],
+        ["uColorLight", new Uniform(colorLightObj)],
+        ["uBgColor", new Uniform(bgColorObj)],
+        ["uHueShift", new Uniform(hueShift)],
+        ["uSaturation", new Uniform(saturation)],
+        ["uTime", new Uniform(0)],
+        ["uChangeSpeed", new Uniform(changeSpeed)],
+        ["uBgCharIndex", new Uniform(0)],
+        ["uInputBlack", new Uniform(inputBlack)],
+        ["uInputWhite", new Uniform(inputWhite)],
+        ["uGamma", new Uniform(gamma)],
+        ["uContrast", new Uniform(contrast)],
+      ]),
+    });
+
+    this._backgroundChar = backgroundChar;
+    this._patternChars = patternChars;
+    this._cellSize = cellSize;
+    this._fontFamily = fontFamily;
+    this._charTexture = charTexture;
   }
-  
+
   set cellSize(value: number) {
-    this._cellSize = value
-    this.uniforms.get('uCellSize')!.value = value
-    this._regenerateTexture()
+    this._cellSize = value;
+    this.uniforms.get("uCellSize")!.value = value;
+    this._regenerateTexture();
   }
-  
+
   get cellSize(): number {
-    return this._cellSize
+    return this._cellSize;
   }
-  
+
   set fontFamily(value: string) {
-    this._fontFamily = value
-    this._regenerateTexture()
+    this._fontFamily = value;
+    this._regenerateTexture();
   }
-  
+
   get fontFamily(): string {
-    return this._fontFamily
+    return this._fontFamily;
   }
-  
+
   set invert(value: boolean) {
-    this.uniforms.get('uInvert')!.value = value
+    this.uniforms.get("uInvert")!.value = value;
   }
-  
+
   get invert(): boolean {
-    return this.uniforms.get('uInvert')!.value as boolean
+    return this.uniforms.get("uInvert")?.value as boolean;
   }
-  
+
   set colorMode(value: boolean) {
-    this.uniforms.get('uColorMode')!.value = value
+    this.uniforms.get("uColorMode")!.value = value;
   }
-  
+
   get colorMode(): boolean {
-    return this.uniforms.get('uColorMode')!.value as boolean
+    return this.uniforms.get("uColorMode")?.value as boolean;
   }
-  
+
   set colorDark(value: string) {
-    (this.uniforms.get('uColorDark')!.value as Color).set(value)
+    (this.uniforms.get("uColorDark")?.value as Color).set(value);
   }
-  
+
   set colorLight(value: string) {
-    (this.uniforms.get('uColorLight')!.value as Color).set(value)
+    (this.uniforms.get("uColorLight")?.value as Color).set(value);
   }
-  
+
   set bgColor(value: string) {
-    (this.uniforms.get('uBgColor')!.value as Color).set(value)
+    (this.uniforms.get("uBgColor")?.value as Color).set(value);
   }
-  
+
   set hueShift(value: number) {
-    this.uniforms.get('uHueShift')!.value = value
+    this.uniforms.get("uHueShift")!.value = value;
   }
-  
+
   get hueShift(): number {
-    return this.uniforms.get('uHueShift')!.value as number
+    return this.uniforms.get("uHueShift")?.value as number;
   }
-  
+
   set saturation(value: number) {
-    this.uniforms.get('uSaturation')!.value = value
+    this.uniforms.get("uSaturation")!.value = value;
   }
-  
+
   get saturation(): number {
-    return this.uniforms.get('uSaturation')!.value as number
+    return this.uniforms.get("uSaturation")?.value as number;
   }
-  
+
   set changeSpeed(value: number) {
-    this.uniforms.get('uChangeSpeed')!.value = value
+    this.uniforms.get("uChangeSpeed")!.value = value;
   }
-  
+
   get changeSpeed(): number {
-    return this.uniforms.get('uChangeSpeed')!.value as number
+    return this.uniforms.get("uChangeSpeed")?.value as number;
   }
-  
+
   set inputBlack(value: number) {
-    this.uniforms.get('uInputBlack')!.value = value
+    this.uniforms.get("uInputBlack")!.value = value;
   }
-  
+
   get inputBlack(): number {
-    return this.uniforms.get('uInputBlack')!.value as number
+    return this.uniforms.get("uInputBlack")?.value as number;
   }
-  
+
   set inputWhite(value: number) {
-    this.uniforms.get('uInputWhite')!.value = value
+    this.uniforms.get("uInputWhite")!.value = value;
   }
-  
+
   get inputWhite(): number {
-    return this.uniforms.get('uInputWhite')!.value as number
+    return this.uniforms.get("uInputWhite")?.value as number;
   }
-  
+
   set gamma(value: number) {
-    this.uniforms.get('uGamma')!.value = value
+    this.uniforms.get("uGamma")!.value = value;
   }
-  
+
   get gamma(): number {
-    return this.uniforms.get('uGamma')!.value as number
+    return this.uniforms.get("uGamma")?.value as number;
   }
-  
+
   set contrast(value: number) {
-    this.uniforms.get('uContrast')!.value = value
+    this.uniforms.get("uContrast")!.value = value;
   }
-  
+
   get contrast(): number {
-    return this.uniforms.get('uContrast')!.value as number
+    return this.uniforms.get("uContrast")?.value as number;
   }
-  
-  update(renderer: WebGLRenderer, inputBuffer: WebGLRenderTarget, deltaTime?: number): void {
-    this.uniforms.get('uTime')!.value += deltaTime ?? 0
+
+  update(_renderer: WebGLRenderer, _inputBuffer: WebGLRenderTarget, deltaTime?: number): void {
+    this.uniforms.get("uTime")!.value += deltaTime ?? 0;
   }
-  
+
   setCharacters(backgroundChar: string, patternChars: string): void {
-    this._backgroundChar = backgroundChar
-    this._patternChars = patternChars
-    this._regenerateTexture()
+    this._backgroundChar = backgroundChar;
+    this._patternChars = patternChars;
+    this._regenerateTexture();
   }
-  
+
   private _regenerateTexture(): void {
     if (this._charTexture) {
-      this._charTexture.dispose()
+      this._charTexture.dispose();
     }
-    
-    const allChars = this._backgroundChar + this._patternChars
-    this._charTexture = createCharacterTexture(allChars, this._cellSize, this._fontFamily)
-    this.uniforms.get('uCharacters')!.value = this._charTexture
-    this.uniforms.get('uCharactersCount')!.value = allChars.length
-    this.uniforms.get('uBgCharIndex')!.value = 0
+
+    const allChars = this._backgroundChar + this._patternChars;
+    this._charTexture = createCharacterTexture(allChars, this._cellSize, this._fontFamily);
+    this.uniforms.get("uCharacters")!.value = this._charTexture;
+    this.uniforms.get("uCharactersCount")!.value = allChars.length;
+    this.uniforms.get("uBgCharIndex")!.value = 0;
   }
-  
+
   dispose(): void {
     if (this._charTexture) {
-      this._charTexture.dispose()
+      this._charTexture.dispose();
     }
-    super.dispose()
+    super.dispose();
   }
 }

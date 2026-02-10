@@ -1,471 +1,476 @@
-import { TXADecoder } from './TXADecoder'
-import type { RGB } from './TXADecoder'
+import type { RGB } from "./TXADecoder";
+import { TXADecoder } from "./TXADecoder";
 
 export interface ASCIIPlayerOptions {
-  cellSize?: number
-  renderScale?: number
-  fontFamily?: string
-  bgColor?: string
-  changeSpeed?: number
-  canvasRatio?: number
-  onFrameChange?: (frameIndex: number) => void
-  onPlayStateChange?: (playing: boolean) => void
+  cellSize?: number;
+  renderScale?: number;
+  fontFamily?: string;
+  bgColor?: string;
+  changeSpeed?: number;
+  canvasRatio?: number;
+  onFrameChange?: (frameIndex: number) => void;
+  onPlayStateChange?: (playing: boolean) => void;
 }
 
 export interface CharAtlas {
-  canvas: HTMLCanvasElement
-  charWidth: number
-  charHeight: number
-  charCount: number
+  canvas: HTMLCanvasElement;
+  charWidth: number;
+  charHeight: number;
+  charCount: number;
 }
 
 export class ASCIIPlayer {
-  canvas: HTMLCanvasElement
-  ctx: CanvasRenderingContext2D
-  decoder: TXADecoder
-  
-  cellSize: number
-  renderScale: number
-  fontFamily: string
-  bgColor: string
-  changeSpeed: number
-  canvasRatio: number
-  
-  coverOffsetX: number
-  coverOffsetY: number
-  coverScale: number
-  
-  isPlaying: boolean
-  isLoaded: boolean
-  currentFrame: number
-  lastFrameTime: number
-  animationId: number | null
-  charChangeTime: number
-  
-  charAtlas: CharAtlas | null
-  atlasCanvas: HTMLCanvasElement | null
-  coloredAtlasCache: Map<number, HTMLCanvasElement>
-  customCharacters: string | null
-  
-  colorOverride: boolean
-  overrideColorDark: RGB
-  overrideColorLight: RGB
-  
-  onFrameChange: (frameIndex: number) => void
-  onPlayStateChange: (playing: boolean) => void
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  decoder: TXADecoder;
+
+  cellSize: number;
+  renderScale: number;
+  fontFamily: string;
+  bgColor: string;
+  changeSpeed: number;
+  canvasRatio: number;
+
+  coverOffsetX: number;
+  coverOffsetY: number;
+  coverScale: number;
+
+  isPlaying: boolean;
+  isLoaded: boolean;
+  currentFrame: number;
+  lastFrameTime: number;
+  animationId: number | null;
+  charChangeTime: number;
+
+  charAtlas: CharAtlas | null;
+  atlasCanvas: HTMLCanvasElement | null;
+  coloredAtlasCache: Map<number, HTMLCanvasElement>;
+  customCharacters: string | null;
+
+  colorOverride: boolean;
+  overrideColorDark: RGB;
+  overrideColorLight: RGB;
+
+  onFrameChange: (frameIndex: number) => void;
+  onPlayStateChange: (playing: boolean) => void;
 
   constructor(canvas: HTMLCanvasElement, options: ASCIIPlayerOptions = {}) {
-    this.canvas = canvas
-    this.ctx = canvas.getContext('2d') as CanvasRenderingContext2D
-    this.decoder = new TXADecoder()
-    
-    this.cellSize = options.cellSize || 16
-    this.renderScale = options.renderScale || 1.0
-    this.fontFamily = options.fontFamily || 'monospace'
-    this.bgColor = options.bgColor || '#000000'
-    this.changeSpeed = options.changeSpeed || 2.0
-    this.canvasRatio = options.canvasRatio || 0
-    
-    this.coverOffsetX = 0
-    this.coverOffsetY = 0
-    this.coverScale = 1.0
-    
-    this.isPlaying = false
-    this.isLoaded = false
-    this.currentFrame = 0
-    this.lastFrameTime = 0
-    this.animationId = null
-    this.charChangeTime = 0
-    
-    this.charAtlas = null
-    this.atlasCanvas = null
-    this.coloredAtlasCache = new Map()
-    this.customCharacters = null
-    
-    this.colorOverride = false
-    this.overrideColorDark = [0, 51, 0]
-    this.overrideColorLight = [0, 255, 0]
-    
-    this.onFrameChange = options.onFrameChange || (() => {})
-    this.onPlayStateChange = options.onPlayStateChange || (() => {})
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+    this.decoder = new TXADecoder();
+
+    this.cellSize = options.cellSize || 16;
+    this.renderScale = options.renderScale || 1.0;
+    this.fontFamily = options.fontFamily || "monospace";
+    this.bgColor = options.bgColor || "#000000";
+    this.changeSpeed = options.changeSpeed || 2.0;
+    this.canvasRatio = options.canvasRatio || 0;
+
+    this.coverOffsetX = 0;
+    this.coverOffsetY = 0;
+    this.coverScale = 1.0;
+
+    this.isPlaying = false;
+    this.isLoaded = false;
+    this.currentFrame = 0;
+    this.lastFrameTime = 0;
+    this.animationId = null;
+    this.charChangeTime = 0;
+
+    this.charAtlas = null;
+    this.atlasCanvas = null;
+    this.coloredAtlasCache = new Map();
+    this.customCharacters = null;
+
+    this.colorOverride = false;
+    this.overrideColorDark = [0, 51, 0];
+    this.overrideColorLight = [0, 255, 0];
+
+    this.onFrameChange = options.onFrameChange || (() => {});
+    this.onPlayStateChange = options.onPlayStateChange || (() => {});
   }
 
   async load(buffer: ArrayBuffer): Promise<void> {
-    this.decoder.parse(buffer)
-    
-    const bg = this.decoder.bgColor
-    this.bgColor = `rgb(${bg[0]},${bg[1]},${bg[2]})`
-    this.changeSpeed = this.decoder.changeSpeed
-    this.canvasRatio = this.decoder.canvasRatio
-    
-    this.buildCharacterAtlas()
-    this.resizeCanvas()
-    this.coloredAtlasCache.clear()
-    this.isLoaded = true
-    this.currentFrame = 0
-    this.renderFrame(0)
+    this.decoder.parse(buffer);
+
+    const bg = this.decoder.bgColor;
+    this.bgColor = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
+    this.changeSpeed = this.decoder.changeSpeed;
+    this.canvasRatio = this.decoder.canvasRatio;
+
+    this.buildCharacterAtlas();
+    this.resizeCanvas();
+    this.coloredAtlasCache.clear();
+    this.isLoaded = true;
+    this.currentFrame = 0;
+    this.renderFrame(0);
   }
 
   async loadFromFile(file: File): Promise<void> {
-    const buffer = await file.arrayBuffer()
-    await this.load(buffer)
+    const buffer = await file.arrayBuffer();
+    await this.load(buffer);
   }
 
   async loadFromURL(url: string): Promise<void> {
-    const response = await fetch(url)
-    const buffer = await response.arrayBuffer()
-    await this.load(buffer)
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+    await this.load(buffer);
   }
 
   buildCharacterAtlas(): void {
-    const chars = this.customCharacters || this.decoder.characters
+    const chars = this.customCharacters || this.decoder.characters;
     if (!chars || chars.length === 0) {
-      console.error('No characters available')
-      return
+      console.error("No characters available");
+      return;
     }
-    
-    const size = Math.max(this.cellSize * 2, 32)
-    
-    this.atlasCanvas = document.createElement('canvas')
-    this.atlasCanvas.width = size * chars.length
-    this.atlasCanvas.height = size
-    
-    const ctx = this.atlasCanvas.getContext('2d') as CanvasRenderingContext2D
-    ctx.clearRect(0, 0, this.atlasCanvas.width, this.atlasCanvas.height)
-    
-    ctx.font = `bold ${size * 0.85}px ${this.fontFamily}`
-    ctx.fillStyle = '#ffffff'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    
+
+    const size = Math.max(this.cellSize * 2, 32);
+
+    this.atlasCanvas = document.createElement("canvas");
+    this.atlasCanvas.width = size * chars.length;
+    this.atlasCanvas.height = size;
+
+    const ctx = this.atlasCanvas.getContext("2d") as CanvasRenderingContext2D;
+    ctx.clearRect(0, 0, this.atlasCanvas.width, this.atlasCanvas.height);
+
+    ctx.font = `bold ${size * 0.85}px ${this.fontFamily}`;
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
     for (let i = 0; i < chars.length; i++) {
-      ctx.fillText(chars[i], i * size + size / 2, size / 2)
+      ctx.fillText(chars[i], i * size + size / 2, size / 2);
     }
-    
+
     this.charAtlas = {
       canvas: this.atlasCanvas,
       charWidth: size,
       charHeight: size,
-      charCount: chars.length
-    }
+      charCount: chars.length,
+    };
   }
 
   resizeCanvas(): void {
-    const baseCellSize = 16
-    this.cellSize = Math.round(baseCellSize * this.renderScale)
-    
-    const contentWidth = this.decoder.width * this.cellSize
-    const contentHeight = this.decoder.height * this.cellSize
-    
-    const RATIOS = [0, 16/9, 4/3, 1, 9/16, 3/4]
-    const targetRatio = RATIOS[this.canvasRatio] || 0
-    
+    const baseCellSize = 16;
+    this.cellSize = Math.round(baseCellSize * this.renderScale);
+
+    const contentWidth = this.decoder.width * this.cellSize;
+    const contentHeight = this.decoder.height * this.cellSize;
+
+    const RATIOS = [0, 16 / 9, 4 / 3, 1, 9 / 16, 3 / 4];
+    const targetRatio = RATIOS[this.canvasRatio] || 0;
+
     if (targetRatio === 0) {
-      this.canvas.width = contentWidth
-      this.canvas.height = contentHeight
-      this.coverOffsetX = 0
-      this.coverOffsetY = 0
-      this.coverScale = 1.0
+      this.canvas.width = contentWidth;
+      this.canvas.height = contentHeight;
+      this.coverOffsetX = 0;
+      this.coverOffsetY = 0;
+      this.coverScale = 1.0;
     } else {
-      const contentRatio = contentWidth / contentHeight
-      let canvasWidth: number, canvasHeight: number
-      
+      const contentRatio = contentWidth / contentHeight;
+      let canvasWidth: number, canvasHeight: number;
+
       if (contentRatio > targetRatio) {
-        canvasWidth = contentWidth
-        canvasHeight = Math.round(contentWidth / targetRatio)
+        canvasWidth = contentWidth;
+        canvasHeight = Math.round(contentWidth / targetRatio);
       } else {
-        canvasHeight = contentHeight
-        canvasWidth = Math.round(contentHeight * targetRatio)
+        canvasHeight = contentHeight;
+        canvasWidth = Math.round(contentHeight * targetRatio);
       }
-      
-      this.canvas.width = canvasWidth
-      this.canvas.height = canvasHeight
-      
-      this.coverOffsetX = (canvasWidth - contentWidth) / 2
-      this.coverOffsetY = (canvasHeight - contentHeight) / 2
-      this.coverScale = 1.0
+
+      this.canvas.width = canvasWidth;
+      this.canvas.height = canvasHeight;
+
+      this.coverOffsetX = (canvasWidth - contentWidth) / 2;
+      this.coverOffsetY = (canvasHeight - contentHeight) / 2;
+      this.coverScale = 1.0;
     }
   }
 
   getColoredAtlas(r: number, g: number, b: number): HTMLCanvasElement {
-    const key = (r << 16) | (g << 8) | b
-    
+    const key = (r << 16) | (g << 8) | b;
+
     if (this.coloredAtlasCache.has(key)) {
-      return this.coloredAtlasCache.get(key)!
+      return this.coloredAtlasCache.get(key)!;
     }
-    
-    const { canvas: atlas } = this.charAtlas!
-    
-    const coloredCanvas = document.createElement('canvas')
-    coloredCanvas.width = atlas.width
-    coloredCanvas.height = atlas.height
-    const coloredCtx = coloredCanvas.getContext('2d') as CanvasRenderingContext2D
-    
-    coloredCtx.drawImage(atlas, 0, 0)
-    
-    coloredCtx.globalCompositeOperation = 'source-in'
-    coloredCtx.fillStyle = `rgb(${r},${g},${b})`
-    coloredCtx.fillRect(0, 0, coloredCanvas.width, coloredCanvas.height)
-    coloredCtx.globalCompositeOperation = 'source-over'
-    
+
+    const { canvas: atlas } = this.charAtlas!;
+
+    const coloredCanvas = document.createElement("canvas");
+    coloredCanvas.width = atlas.width;
+    coloredCanvas.height = atlas.height;
+    const coloredCtx = coloredCanvas.getContext("2d") as CanvasRenderingContext2D;
+
+    coloredCtx.drawImage(atlas, 0, 0);
+
+    coloredCtx.globalCompositeOperation = "source-in";
+    coloredCtx.fillStyle = `rgb(${r},${g},${b})`;
+    coloredCtx.fillRect(0, 0, coloredCanvas.width, coloredCanvas.height);
+    coloredCtx.globalCompositeOperation = "source-over";
+
     if (this.coloredAtlasCache.size > 256) {
-      const firstKey = this.coloredAtlasCache.keys().next().value as number
-      this.coloredAtlasCache.delete(firstKey)
+      const firstKey = this.coloredAtlasCache.keys().next().value as number;
+      this.coloredAtlasCache.delete(firstKey);
     }
-    
-    this.coloredAtlasCache.set(key, coloredCanvas)
-    return coloredCanvas
+
+    this.coloredAtlasCache.set(key, coloredCanvas);
+    return coloredCanvas;
   }
 
   renderFrame(frameIndex: number): void {
-    if (!this.isLoaded) return
-    
-    const grid = this.decoder.getFrame(frameIndex)
-    if (!grid) return
-    
-    const ctx = this.ctx
-    const { width, height, colorMode } = this.decoder
-    const cellSize = this.cellSize * this.coverScale
-    const { charWidth, charHeight, charCount } = this.charAtlas!
-    const offsetX = this.coverOffsetX
-    const offsetY = this.coverOffsetY
-    
-    ctx.fillStyle = this.bgColor
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
-    
-    const chars = this.customCharacters || this.decoder.characters
-    const numChars = chars.length
-    
+    if (!this.isLoaded) return;
+
+    const grid = this.decoder.getFrame(frameIndex);
+    if (!grid) return;
+
+    const ctx = this.ctx;
+    const { width, height, colorMode } = this.decoder;
+    const cellSize = this.cellSize * this.coverScale;
+    const { charWidth, charHeight, charCount } = this.charAtlas!;
+    const offsetX = this.coverOffsetX;
+    const offsetY = this.coverOffsetY;
+
+    ctx.fillStyle = this.bgColor;
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    const chars = this.customCharacters || this.decoder.characters;
+    const numChars = chars.length;
+
     for (let x = 0; x < width; x++) {
       for (let y = 0; y < height; y++) {
-        const drawX = offsetX + x * cellSize
-        const drawY = offsetY + y * cellSize
-        
-        if (drawX + cellSize < 0 || drawX > this.canvas.width ||
-            drawY + cellSize < 0 || drawY > this.canvas.height) {
-          continue
+        const drawX = offsetX + x * cellSize;
+        const drawY = offsetY + y * cellSize;
+
+        if (drawX + cellSize < 0 || drawX > this.canvas.width || drawY + cellSize < 0 || drawY > this.canvas.height) {
+          continue;
         }
-        
-        const cell = grid[x][y]
-        
-        let r: number, g: number, b: number, alpha: number, luminance: number
-        
+
+        const cell = grid[x][y];
+
+        let r: number, g: number, b: number, alpha: number, luminance: number;
+
         if (colorMode === 0) {
           // Gradient mode: cell = [luminance]
-          luminance = cell[0]
-          const overrideColor = this.getOverrideColor(luminance)
+          luminance = cell[0];
+          const overrideColor = this.getOverrideColor(luminance);
           if (overrideColor) {
-            r = overrideColor[0]
-            g = overrideColor[1]
-            b = overrideColor[2]
+            r = overrideColor[0];
+            g = overrideColor[1];
+            b = overrideColor[2];
           } else {
-            const color = this.decoder.getColor(luminance)
-            r = color[0]
-            g = color[1]
-            b = color[2]
+            const color = this.decoder.getColor(luminance);
+            r = color[0];
+            g = color[1];
+            b = color[2];
           }
-          alpha = luminance / 255
+          alpha = luminance / 255;
         } else {
           // Fullcolor mode: cell = [r, g, b]
-          r = cell[0]
-          g = cell[1]
-          b = cell[2]
-          luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
-          alpha = luminance / 255
+          r = cell[0];
+          g = cell[1];
+          b = cell[2];
+          luminance = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+          alpha = luminance / 255;
         }
-        
-        if (alpha < 0.05) continue
-        
-        let charIndex = 0
+
+        if (alpha < 0.05) continue;
+
+        let charIndex = 0;
         if (luminance > 12 && numChars > 1) {
-          const timeStep = Math.floor(this.charChangeTime * this.changeSpeed)
-          const cellSeed = (x * 78.233 + y * 12.9898) % 1000
-          const randVal = Math.abs(Math.sin(cellSeed + timeStep) * 43758.5453) % 1
-          const patternCount = numChars - 1
-          charIndex = 1 + Math.floor(randVal * patternCount)
+          const timeStep = Math.floor(this.charChangeTime * this.changeSpeed);
+          const cellSeed = (x * 78.233 + y * 12.9898) % 1000;
+          const randVal = Math.abs(Math.sin(cellSeed + timeStep) * 43758.5453) % 1;
+          const patternCount = numChars - 1;
+          charIndex = 1 + Math.floor(randVal * patternCount);
         }
-        
-        const coloredAtlas = this.getColoredAtlas(r, g, b)
-        
-        ctx.globalAlpha = alpha
-        ctx.drawImage(
-          coloredAtlas,
-          charIndex * charWidth, 0, charWidth, charHeight,
-          drawX, drawY, cellSize, cellSize
-        )
+
+        const coloredAtlas = this.getColoredAtlas(r, g, b);
+
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(coloredAtlas, charIndex * charWidth, 0, charWidth, charHeight, drawX, drawY, cellSize, cellSize);
       }
     }
-    
-    ctx.globalAlpha = 1
-    this.currentFrame = frameIndex
-    this.onFrameChange(frameIndex)
+
+    ctx.globalAlpha = 1;
+    this.currentFrame = frameIndex;
+    this.onFrameChange(frameIndex);
   }
 
   play(): void {
-    if (!this.isLoaded || this.isPlaying) return
-    
-    this.isPlaying = true
-    this.lastFrameTime = performance.now()
-    this.onPlayStateChange(true)
-    
-    this.animate()
+    if (!this.isLoaded || this.isPlaying) return;
+
+    this.isPlaying = true;
+    this.lastFrameTime = performance.now();
+    this.onPlayStateChange(true);
+
+    this.animate();
   }
 
   pause(): void {
-    this.isPlaying = false
-    
+    this.isPlaying = false;
+
     if (this.animationId) {
-      cancelAnimationFrame(this.animationId)
-      this.animationId = null
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
     }
-    
-    this.onPlayStateChange(false)
+
+    this.onPlayStateChange(false);
   }
 
   stop(): void {
-    this.pause()
-    this.currentFrame = 0
-    this.renderFrame(0)
+    this.pause();
+    this.currentFrame = 0;
+    this.renderFrame(0);
   }
 
   toggle(): void {
     if (this.isPlaying) {
-      this.pause()
+      this.pause();
     } else {
-      this.play()
+      this.play();
     }
   }
 
   seek(frameIndex: number): void {
-    const clampedFrame = Math.max(0, Math.min(frameIndex, this.decoder.totalFrames - 1))
-    this.renderFrame(clampedFrame)
+    const clampedFrame = Math.max(0, Math.min(frameIndex, this.decoder.totalFrames - 1));
+    this.renderFrame(clampedFrame);
   }
 
   seekToTime(time: number): void {
-    const frame = Math.floor(time * this.decoder.fps)
-    this.seek(frame)
+    const frame = Math.floor(time * this.decoder.fps);
+    this.seek(frame);
   }
 
   animate(): void {
-    if (!this.isPlaying) return
-    
-    const now = performance.now()
-    const frameTime = 1000 / this.decoder.fps
-    const elapsed = now - this.lastFrameTime
-    
+    if (!this.isPlaying) return;
+
+    const now = performance.now();
+    const frameTime = 1000 / this.decoder.fps;
+    const elapsed = now - this.lastFrameTime;
+
     if (elapsed >= frameTime) {
-      this.lastFrameTime = now - (elapsed % frameTime)
-      this.charChangeTime = now / 1000
-      
-      let nextFrame = this.currentFrame + 1
+      this.lastFrameTime = now - (elapsed % frameTime);
+      this.charChangeTime = now / 1000;
+
+      let nextFrame = this.currentFrame + 1;
       if (nextFrame >= this.decoder.totalFrames) {
-        nextFrame = 0
+        nextFrame = 0;
       }
-      
-      this.renderFrame(nextFrame)
+
+      this.renderFrame(nextFrame);
     } else if (this.changeSpeed > 0) {
-      this.charChangeTime = now / 1000
-      this.renderFrame(this.currentFrame)
+      this.charChangeTime = now / 1000;
+      this.renderFrame(this.currentFrame);
     }
-    
-    this.animationId = requestAnimationFrame(() => this.animate())
+
+    this.animationId = requestAnimationFrame(() => this.animate());
   }
 
   setCellSize(size: number): void {
-    this.cellSize = size
+    this.cellSize = size;
     if (this.isLoaded) {
-      this.buildCharacterAtlas()
-      this.coloredAtlasCache.clear()
-      this.resizeCanvas()
-      this.renderFrame(this.currentFrame)
+      this.buildCharacterAtlas();
+      this.coloredAtlasCache.clear();
+      this.resizeCanvas();
+      this.renderFrame(this.currentFrame);
     }
   }
 
   setRenderScale(scale: number): void {
-    this.renderScale = scale
+    this.renderScale = scale;
     if (this.isLoaded) {
-      this.buildCharacterAtlas()
-      this.coloredAtlasCache.clear()
-      this.resizeCanvas()
-      this.renderFrame(this.currentFrame)
+      this.buildCharacterAtlas();
+      this.coloredAtlasCache.clear();
+      this.resizeCanvas();
+      this.renderFrame(this.currentFrame);
     }
   }
 
   setChangeSpeed(speed: number): void {
-    this.changeSpeed = speed
+    this.changeSpeed = speed;
     if (this.isLoaded && !this.isPlaying) {
-      this.renderFrame(this.currentFrame)
+      this.renderFrame(this.currentFrame);
     }
   }
 
   setCanvasRatio(ratio: number): void {
-    this.canvasRatio = ratio
+    this.canvasRatio = ratio;
     if (this.isLoaded) {
-      this.resizeCanvas()
-      this.renderFrame(this.currentFrame)
+      this.resizeCanvas();
+      this.renderFrame(this.currentFrame);
     }
   }
 
   setFontFamily(fontFamily: string): void {
-    this.fontFamily = fontFamily
+    this.fontFamily = fontFamily;
     if (this.isLoaded) {
-      this.buildCharacterAtlas()
-      this.coloredAtlasCache.clear()
-      this.renderFrame(this.currentFrame)
+      this.buildCharacterAtlas();
+      this.coloredAtlasCache.clear();
+      this.renderFrame(this.currentFrame);
     }
   }
 
   setBgColor(color: string): void {
-    this.bgColor = color
+    this.bgColor = color;
     if (this.isLoaded) {
-      this.renderFrame(this.currentFrame)
+      this.renderFrame(this.currentFrame);
     }
   }
 
   setColors(colorDark: string, colorLight: string): void {
-    this.colorOverride = true
-    this.overrideColorDark = this.hexToRgb(colorDark)
-    this.overrideColorLight = this.hexToRgb(colorLight)
-    this.coloredAtlasCache.clear()
+    this.colorOverride = true;
+    this.overrideColorDark = this.hexToRgb(colorDark);
+    this.overrideColorLight = this.hexToRgb(colorLight);
+    this.coloredAtlasCache.clear();
     if (this.isLoaded) {
-      this.renderFrame(this.currentFrame)
+      this.renderFrame(this.currentFrame);
     }
   }
 
   setCharacters(chars: string): void {
-    if (!chars || chars.length === 0) return
-    this.customCharacters = chars
+    if (!chars || chars.length === 0) return;
+    this.customCharacters = chars;
     if (this.isLoaded) {
-      this.buildCharacterAtlas()
-      this.coloredAtlasCache.clear()
-      this.renderFrame(this.currentFrame)
+      this.buildCharacterAtlas();
+      this.coloredAtlasCache.clear();
+      this.renderFrame(this.currentFrame);
     }
   }
 
   hexToRgb(hex: string): RGB {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-    return result ? [
-      parseInt(result[1], 16),
-      parseInt(result[2], 16),
-      parseInt(result[3], 16)
-    ] : [0, 0, 0]
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
   }
 
   getOverrideColor(luminance: number): RGB | null {
-    if (!this.colorOverride) return null
-    const t = luminance / 255
+    if (!this.colorOverride) return null;
+    const t = luminance / 255;
     return [
       Math.round(this.overrideColorDark[0] + (this.overrideColorLight[0] - this.overrideColorDark[0]) * t),
       Math.round(this.overrideColorDark[1] + (this.overrideColorLight[1] - this.overrideColorDark[1]) * t),
-      Math.round(this.overrideColorDark[2] + (this.overrideColorLight[2] - this.overrideColorDark[2]) * t)
-    ]
+      Math.round(this.overrideColorDark[2] + (this.overrideColorLight[2] - this.overrideColorDark[2]) * t),
+    ];
   }
 
-  get duration(): number { return this.decoder.duration }
-  get totalFrames(): number { return this.decoder.totalFrames }
-  get fps(): number { return this.decoder.fps }
-  get width(): number { return this.decoder.width }
-  get height(): number { return this.decoder.height }
-  get currentTime(): number { return this.currentFrame / this.decoder.fps }
-  get progress(): number { return this.totalFrames > 0 ? this.currentFrame / this.totalFrames : 0 }
+  get duration(): number {
+    return this.decoder.duration;
+  }
+  get totalFrames(): number {
+    return this.decoder.totalFrames;
+  }
+  get fps(): number {
+    return this.decoder.fps;
+  }
+  get width(): number {
+    return this.decoder.width;
+  }
+  get height(): number {
+    return this.decoder.height;
+  }
+  get currentTime(): number {
+    return this.currentFrame / this.decoder.fps;
+  }
+  get progress(): number {
+    return this.totalFrames > 0 ? this.currentFrame / this.totalFrames : 0;
+  }
 }
