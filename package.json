@@ -1,7 +1,39 @@
 {
   "name": "ascii-craft",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
+  "description": "A lightweight Web Component for playing TXA ASCII animations, works like a <video> tag",
+  "author": "z2devil",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/z2devil/ascii-craft.git"
+  },
+  "homepage": "https://github.com/z2devil/ascii-craft",
+  "bugs": {
+    "url": "https://github.com/z2devil/ascii-craft/issues"
+  },
+  "keywords": ["ascii", "ascii-art", "animation", "txa", "web-component", "player"],
+  "main": "./dist-lib/ascii-craft.umd.js",
+  "module": "./dist-lib/ascii-craft.mjs",
+  "types": "./dist-lib/ascii-craft.d.mts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist-lib/ascii-craft.d.mts",
+        "default": "./dist-lib/ascii-craft.mjs"
+      },
+      "require": "./dist-lib/ascii-craft.umd.js"
+    }
+  },
+  "files": [
+    "dist-lib"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "sideEffects": false,
   "scripts": {
     "dev": "vite",
     "build": "vite build",
