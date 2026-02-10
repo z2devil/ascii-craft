@@ -309,7 +309,7 @@
   </div>
   
   <div class="upload-prompt" id="upload-prompt">
-    Drop a .txa file or use the panel to load
+    Drop .txa file or use the panel to load
   </div>
   
   <div class="controls">
@@ -325,7 +325,7 @@
     </div>
     
     <div id="player-controls" style="display: none;">
-      <h3>Playback</h3>
+      <h3>Playback Controls</h3>
       
       <div class="playback-controls">
         <button id="btn-stop" title="Stop">⏹</button>
@@ -364,7 +364,7 @@
         </div>
       </div>
       
-      <h3>Display</h3>
+      <h3>Display Settings</h3>
       
       <div class="control-group">
         <label>Canvas Ratio</label>
@@ -389,7 +389,7 @@
       </div>
       
       <div class="control-group">
-        <label>Font Family</label>
+        <label>Font</label>
         <select id="font-family">
           <option value="monospace">Monospace</option>
           <option value="Courier New, Courier, monospace">Courier New</option>
@@ -485,7 +485,7 @@
     function getCanvasMemory() {
       const width = canvas.width
       const height = canvas.height
-      // Canvas 使用 RGBA 格式，每像素 4 字节
+      // Canvas uses RGBA format, 4 bytes per pixel
       return width * height * 4
     }
     

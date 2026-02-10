@@ -1,51 +1,56 @@
 # ASCII Craft
 
-ASCII 艺术动画编辑器和播放器。支持将视频、图片、3D 场景转换为 ASCII 字符动画，并导出为 TXA 格式文件。
+Real-time ASCII art animation editor and player. Convert images, videos, webcam feeds, and 3D scenes into ASCII character animations, with recording and export to the compact TXA binary format.
 
-## 功能特性
+[**中文文档**](./README_CN.md)
 
-- 实时 ASCII 艺术渲染（基于 WebGL Shader）
-- 支持多种输入源：图片、视频、摄像头、3D 场景
-- 录制导出为 TXA 格式动画文件
-- 轻量级 TXA 播放器组件
-- 可自定义字符集、颜色、字体等样式
-- 高效压缩（Delta Encoding + RLE）
+## Features
 
-## 快速开始
+- **Real-time ASCII rendering** via WebGL shaders (Three.js + postprocessing)
+- **Multiple input sources**: images, videos, webcam, 3D scenes
+- **Full-featured editor**: cell size, fonts, color gradients, hue/saturation, levels (black/white points, gamma, contrast), invert, full-color mode
+- **TXA recording & export**: record animations to a compact binary format with delta encoding + RLE compression
+- **Lightweight TXA player**: canvas-based playback component
+- **`<txa-player>` Web Component**: drop-in custom element, works like `<video>`
+- **Customizable character sets, colors, and fonts**
+
+## Quick Start
 
 ```bash
-# 安装依赖
 npm install
-
-# 启动开发服务器
 npm run dev
 ```
 
-访问 `http://localhost:3000` 打开编辑器，`http://localhost:3000/player.html` 打开播放器。
+- Editor: `http://localhost:3000`
+- Player: `http://localhost:3000/player.html`
+- Web Component demo: `http://localhost:3000/webcomponent-demo.html`
 
-## 项目结构
+## Project Structure
 
 ```
 ascii-craft/
-├── index.html          # 编辑器页面
-├── player.html         # 播放器页面
+├── index.html              # Editor page
+├── player.html             # Standalone TXA player page
+├── webcomponent-demo.html  # <txa-player> web component demo
 ├── src/
-│   ├── main.js         # 编辑器主程序
-│   ├── ASCIIEffect.js  # WebGL ASCII 效果（Three.js 后处理）
-│   ├── ASCIIRecorder.js# TXA 录制器
-│   ├── ASCIIPlayer.js  # TXA 播放器
-│   ├── TXAEncoder.js   # TXA 编码器
-│   └── TXADecoder.js   # TXA 解码器
+│   ├── main.js             # Editor app entry point
+│   ├── ASCIIEffect.js      # WebGL ASCII post-processing effect (Three.js)
+│   ├── ASCIIRecorder.js    # TXA recorder (captures frames from renderer)
+│   ├── ASCIIPlayer.js      # Canvas-based TXA playback engine
+│   ├── TXAPlayerElement.js # <txa-player> Web Component wrapper
+│   ├── TXAEncoder.js       # TXA binary encoder
+│   └── TXADecoder.js       # TXA binary decoder
+├── vite.config.js
 └── package.json
 ```
 
 ---
 
-## Web Component 使用指南
+## `<txa-player>` Web Component
 
-`<txa-player>` 是一个标准的 Web Component，可以像使用 `<video>` 标签一样简单地嵌入 TXA 动画。
+A standard Web Component for embedding TXA animations, similar to using a `<video>` tag.
 
-### 基础用法
+### Basic Usage
 
 ```html
 <script type="module" src="./src/TXAPlayerElement.js"></script>
@@ -53,62 +58,62 @@ ascii-craft/
 <txa-player src="/animation.txa" autoplay loop></txa-player>
 ```
 
-### 属性
+### Attributes
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `src` | string | TXA 文件 URL |
-| `autoplay` | boolean | 自动播放 |
-| `loop` | boolean | 循环播放 |
-| `render-scale` | number | 渲染缩放 (默认 1.0) |
-| `change-speed` | number | 字符变化速度 (默认 2.0) |
-| `font-family` | string | 字体 (默认 monospace) |
-| `bg-color` | string | 背景色 (默认 #000000) |
-| `color-dark` | string | 渐变暗色 |
-| `color-light` | string | 渐变亮色 |
-| `characters` | string | 自定义字符集 |
-| `canvas-ratio` | number | 画布比例 (0-5) |
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `src` | string | TXA file URL |
+| `autoplay` | boolean | Auto-play on load |
+| `loop` | boolean | Loop playback |
+| `render-scale` | number | Render scale factor (default `1.0`) |
+| `change-speed` | number | Character change speed (default `2.0`) |
+| `font-family` | string | Font (default `monospace`) |
+| `bg-color` | string | Background color (default `#000000`) |
+| `color-dark` | string | Gradient dark color |
+| `color-light` | string | Gradient light color |
+| `characters` | string | Custom character set |
+| `canvas-ratio` | number | Canvas aspect ratio (0–5, see below) |
 
-### 方法
+### Methods
 
 ```javascript
 const player = document.querySelector('txa-player')
 
-player.play()           // 播放
-player.pause()          // 暂停
-player.stop()           // 停止
-player.toggle()         // 切换播放/暂停
-player.seek(100)        // 跳转到第 100 帧
-player.seekToTime(5.5)  // 跳转到 5.5 秒
+player.play()           // Play
+player.pause()          // Pause
+player.stop()           // Stop (reset to frame 0)
+player.toggle()         // Toggle play/pause
+player.seek(100)        // Seek to frame 100
+player.seekToTime(5.5)  // Seek to 5.5 seconds
 ```
 
-### 只读属性
+### Read-only Properties
 
 ```javascript
-player.duration      // 时长（秒）
-player.totalFrames   // 总帧数
-player.fps           // 帧率
-player.width         // 网格宽度
-player.height        // 网格高度
-player.currentTime   // 当前时间
-player.progress      // 播放进度 (0-1)
-player.paused        // 是否暂停
-player.ended         // 是否播放结束
+player.duration      // Duration in seconds
+player.totalFrames   // Total frame count
+player.fps           // Frame rate
+player.width         // Grid width (columns)
+player.height        // Grid height (rows)
+player.currentTime   // Current playback time
+player.progress      // Playback progress (0–1)
+player.paused        // Whether paused
+player.ended         // Whether playback ended
 ```
 
-### 事件
+### Events
 
-| 事件 | 说明 |
-|------|------|
-| `loadstart` | 开始加载 |
-| `loadeddata` | 加载完成，`event.detail` 包含文件信息 |
-| `play` | 开始播放 |
-| `pause` | 暂停 |
-| `ended` | 播放结束 |
-| `timeupdate` | 时间更新，`event.detail` 包含当前时间和进度 |
-| `error` | 加载错误 |
+| Event | Description |
+|-------|-------------|
+| `loadstart` | Loading started |
+| `loadeddata` | Load complete. `event.detail` contains file info |
+| `play` | Playback started |
+| `pause` | Paused |
+| `ended` | Playback ended |
+| `timeupdate` | Time updated. `event.detail` contains `currentTime` and `progress` |
+| `error` | Load error |
 
-### 完整示例
+### Full Example
 
 ```html
 <!DOCTYPE html>
@@ -120,13 +125,11 @@ player.ended         // 是否播放结束
       height: 600px;
       border: 1px solid #333;
     }
-    .controls {
-      margin-top: 10px;
-    }
+    .controls { margin-top: 10px; }
   </style>
 </head>
 <body>
-  <txa-player 
+  <txa-player
     id="player"
     src="/animation.txa"
     render-scale="1.5"
@@ -135,55 +138,55 @@ player.ended         // 是否播放结束
     color-light="#00ff00"
     loop
   ></txa-player>
-  
+
   <div class="controls">
-    <button id="play-btn">▶</button>
+    <button id="play-btn">Play</button>
     <span id="time">0:00 / 0:00</span>
   </div>
 
   <script type="module">
     import './src/TXAPlayerElement.js'
-    
+
     const player = document.getElementById('player')
     const playBtn = document.getElementById('play-btn')
     const timeDisplay = document.getElementById('time')
-    
+
     function formatTime(sec) {
       const m = Math.floor(sec / 60)
       const s = Math.floor(sec % 60)
       return `${m}:${s.toString().padStart(2, '0')}`
     }
-    
+
     player.addEventListener('loadeddata', (e) => {
       console.log('Loaded:', e.detail)
     })
-    
+
     player.addEventListener('timeupdate', (e) => {
-      timeDisplay.textContent = `${formatTime(e.detail.currentTime)} / ${formatTime(player.duration)}`
+      timeDisplay.textContent =
+        `${formatTime(e.detail.currentTime)} / ${formatTime(player.duration)}`
     })
-    
-    player.addEventListener('play', () => playBtn.textContent = '⏸')
-    player.addEventListener('pause', () => playBtn.textContent = '▶')
-    player.addEventListener('ended', () => console.log('Animation ended'))
-    
+
+    player.addEventListener('play', () => playBtn.textContent = 'Pause')
+    player.addEventListener('pause', () => playBtn.textContent = 'Play')
+
     playBtn.addEventListener('click', () => player.toggle())
   </script>
 </body>
 </html>
 ```
 
-### 动态修改属性
+### Dynamic Attribute Changes
 
 ```javascript
 const player = document.querySelector('txa-player')
 
-// 通过属性修改
+// Via properties
 player.src = '/another.txa'
 player.loop = true
 player.renderScale = 2.0
 player.changeSpeed = 5.0
 
-// 通过 setAttribute
+// Via setAttribute
 player.setAttribute('color-dark', '#000033')
 player.setAttribute('color-light', '#3399ff')
 player.setAttribute('characters', ' .:*#@')
@@ -191,11 +194,11 @@ player.setAttribute('characters', ' .:*#@')
 
 ---
 
-## ASCIIPlayer 使用指南
+## ASCIIPlayer API
 
-`ASCIIPlayer` 是一个轻量级的 TXA 文件播放器，可以在任何 Canvas 元素上播放 ASCII 动画。
+`ASCIIPlayer` is the underlying playback engine. It renders TXA animations onto any canvas element.
 
-### 基础用法
+### Basic Usage
 
 ```html
 <canvas id="player"></canvas>
@@ -205,223 +208,151 @@ player.setAttribute('characters', ' .:*#@')
   const canvas = document.getElementById('player')
   const player = new ASCIIPlayer(canvas)
 
-  // 从 URL 加载并播放
   await player.loadFromURL('/animation.txa')
   player.play()
 </script>
 ```
 
-### 构造函数
+### Constructor
 
 ```javascript
 new ASCIIPlayer(canvas, options)
 ```
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `canvas` | HTMLCanvasElement | - | 渲染目标 Canvas |
-| `options.cellSize` | number | 16 | 单元格大小（像素） |
-| `options.renderScale` | number | 1.0 | 渲染缩放比例 |
-| `options.fontFamily` | string | 'monospace' | 字体 |
-| `options.bgColor` | string | '#000000' | 背景色 |
-| `options.changeSpeed` | number | 2.0 | 字符变化速度 |
-| `options.canvasRatio` | number | 0 | 画布比例（见下表） |
-| `options.onFrameChange` | function | - | 帧变化回调 |
-| `options.onPlayStateChange` | function | - | 播放状态变化回调 |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `cellSize` | number | `16` | Cell size in pixels |
+| `renderScale` | number | `1.0` | Render scale factor |
+| `fontFamily` | string | `'monospace'` | Font family |
+| `bgColor` | string | `'#000000'` | Background color |
+| `changeSpeed` | number | `2.0` | Character change speed |
+| `canvasRatio` | number | `0` | Canvas aspect ratio |
+| `onFrameChange` | function | – | Frame change callback |
+| `onPlayStateChange` | function | – | Play state change callback |
 
-**canvasRatio 值：**
-| 值 | 比例 |
-|----|------|
-| 0 | 自由（跟随内容） |
+**Canvas Ratio Values:**
+
+| Value | Ratio |
+|-------|-------|
+| 0 | Free (follows content) |
 | 1 | 16:9 |
 | 2 | 4:3 |
 | 3 | 1:1 |
 | 4 | 9:16 |
 | 5 | 3:4 |
 
-### 加载方法
+### Loading
 
 ```javascript
-// 从 ArrayBuffer 加载
-await player.load(arrayBuffer)
-
-// 从 File 对象加载（如 input[type=file]）
-await player.loadFromFile(file)
-
-// 从 URL 加载
-await player.loadFromURL('/path/to/animation.txa')
+await player.load(arrayBuffer)        // From ArrayBuffer
+await player.loadFromFile(file)       // From File object
+await player.loadFromURL('/path.txa') // From URL
 ```
 
-### 播放控制
+### Playback Controls
 
 ```javascript
-player.play()           // 播放
-player.pause()          // 暂停
-player.stop()           // 停止（回到开头）
-player.toggle()         // 切换播放/暂停
-
-player.seek(100)        // 跳转到第 100 帧
-player.seekToTime(5.5)  // 跳转到 5.5 秒
+player.play()
+player.pause()
+player.stop()
+player.toggle()
+player.seek(100)         // Seek to frame
+player.seekToTime(5.5)   // Seek to time in seconds
 ```
 
-### 样式设置
+### Style Methods
 
 ```javascript
-player.setRenderScale(1.5)                    // 1.5 倍渲染
-player.setChangeSpeed(3.0)                    // 字符变化速度
-player.setCanvasRatio(1)                      // 16:9 比例
-player.setFontFamily('JetBrains Mono')        // 字体
-player.setBgColor('#001100')                  // 背景色
-player.setColors('#003300', '#00ff00')        // 渐变色（暗→亮）
-player.setCharacters(' .:-=+*#%@')            // 自定义字符集
+player.setRenderScale(1.5)
+player.setChangeSpeed(3.0)
+player.setCanvasRatio(1)                      // 16:9
+player.setFontFamily('JetBrains Mono')
+player.setBgColor('#001100')
+player.setColors('#003300', '#00ff00')        // Dark → Light gradient
+player.setCharacters(' .:-=+*#%@')
 ```
 
-### 只读属性
+### Read-only Properties
 
 ```javascript
-player.duration      // 时长（秒）
-player.totalFrames   // 总帧数
-player.fps           // 帧率
-player.width         // 网格宽度（字符数）
-player.height        // 网格高度（字符数）
-player.currentTime   // 当前时间（秒）
-player.progress      // 播放进度 (0-1)
-player.isPlaying     // 是否正在播放
-player.isLoaded      // 是否已加载
-```
-
-### 完整示例：带进度条的播放器
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    #player { background: #000; }
-    #progress { width: 300px; }
-    #time { font-family: monospace; }
-  </style>
-</head>
-<body>
-  <canvas id="player"></canvas>
-  <div>
-    <button id="play-btn">▶</button>
-    <input type="range" id="progress" min="0" max="100" value="0">
-    <span id="time">0:00 / 0:00</span>
-  </div>
-  <input type="file" id="file-input" accept=".txa">
-
-  <script type="module">
-    import { ASCIIPlayer } from './src/ASCIIPlayer.js'
-
-    const canvas = document.getElementById('player')
-    const playBtn = document.getElementById('play-btn')
-    const progressBar = document.getElementById('progress')
-    const timeDisplay = document.getElementById('time')
-    const fileInput = document.getElementById('file-input')
-
-    const player = new ASCIIPlayer(canvas, {
-      onFrameChange: () => {
-        progressBar.value = player.progress * 100
-        timeDisplay.textContent = formatTime(player.currentTime) + ' / ' + formatTime(player.duration)
-      },
-      onPlayStateChange: (playing) => {
-        playBtn.textContent = playing ? '⏸' : '▶'
-      }
-    })
-
-    function formatTime(sec) {
-      const m = Math.floor(sec / 60)
-      const s = Math.floor(sec % 60)
-      return `${m}:${s.toString().padStart(2, '0')}`
-    }
-
-    fileInput.addEventListener('change', async (e) => {
-      if (e.target.files[0]) {
-        await player.loadFromFile(e.target.files[0])
-        player.play()
-      }
-    })
-
-    playBtn.addEventListener('click', () => player.toggle())
-
-    progressBar.addEventListener('input', (e) => {
-      const frame = Math.floor((e.target.value / 100) * player.totalFrames)
-      player.seek(frame)
-    })
-  </script>
-</body>
-</html>
+player.duration      // Duration in seconds
+player.totalFrames   // Total frame count
+player.fps           // Frame rate
+player.width         // Grid width (columns)
+player.height        // Grid height (rows)
+player.currentTime   // Current time in seconds
+player.progress      // Progress (0–1)
+player.isPlaying     // Playing state
+player.isLoaded      // Loaded state
 ```
 
 ---
 
-## TXA 文件格式规范 (V2)
+## TXA File Format (V2)
 
-TXA (Text Animation) 是一种专为 ASCII 动画设计的二进制格式，支持高效压缩。
+TXA (Text Animation) is a compact binary format designed for ASCII animations with efficient compression.
 
-### 文件结构
+### File Layout
 
 ```
 ┌─────────────────────────────────────┐
 │ HEADER (32 bytes)                   │
 ├─────────────────────────────────────┤
 │ PALETTE                             │
-│   - Characters (CharCount bytes)    │
-│   - Colors (ColorCount × 3 bytes)   │
+│   Characters (CharCount bytes)      │
+│   Colors (ColorCount x 3 bytes)     │
 ├─────────────────────────────────────┤
 │ FRAMES                              │
-│   - Frame 0                         │
-│   - Frame 1                         │
-│   - ...                             │
+│   Frame 0                           │
+│   Frame 1                           │
+│   ...                               │
 └─────────────────────────────────────┘
 ```
 
-### Header 结构 (32 bytes)
+### Header (32 bytes)
 
-| 偏移 | 大小 | 字段 | 说明 |
-|------|------|------|------|
+| Offset | Size | Field | Description |
+|--------|------|-------|-------------|
 | 0 | 4 | Magic | `TXA\0` |
-| 4 | 1 | Version | 版本号 (2) |
-| 5 | 1 | ColorMode | 0=渐变, 1=全彩 |
-| 6 | 2 | Width | 网格宽度 (uint16 LE) |
-| 8 | 2 | Height | 网格高度 (uint16 LE) |
-| 10 | 1 | FPS | 帧率 |
-| 11 | 4 | TotalFrames | 总帧数 (uint32 LE) |
-| 15 | 1 | CharCount | 字符数量 |
-| 16 | 2 | ColorCount | 颜色数量 (uint16 LE) |
-| 18 | 3 | BgColor | 背景色 RGB |
-| 21 | 1 | ChangeSpeed | 字符变化速度 (×10) |
-| 22 | 1 | CanvasRatio | 画布比例 |
-| 23 | 1 | LumBits | 亮度量化位数 |
-| 24 | 8 | Reserved | 保留 |
+| 4 | 1 | Version | Format version (`2`) |
+| 5 | 1 | ColorMode | `0` = gradient, `1` = full color |
+| 6 | 2 | Width | Grid columns (uint16 LE) |
+| 8 | 2 | Height | Grid rows (uint16 LE) |
+| 10 | 1 | FPS | Frame rate |
+| 11 | 4 | TotalFrames | Frame count (uint32 LE) |
+| 15 | 1 | CharCount | Character palette size |
+| 16 | 2 | ColorCount | Color palette size (uint16 LE) |
+| 18 | 3 | BgColor | Background color (RGB) |
+| 21 | 1 | ChangeSpeed | Character change speed (value / 10) |
+| 22 | 1 | CanvasRatio | Aspect ratio preset |
+| 23 | 1 | LumBits | Luminance quantization bits |
+| 24 | 8 | Reserved | Reserved for future use |
 
-### 帧结构
+### Frame Structure
 
-每帧包含：
-| 大小 | 字段 | 说明 |
-|------|------|------|
-| 1 | FrameType | 0=关键帧, 1=差分帧 |
-| 4 | DataSize | 压缩后数据大小 (uint32 LE) |
-| N | Data | 压缩数据 |
+| Size | Field | Description |
+|------|-------|-------------|
+| 1 | FrameType | `0` = keyframe, `1` = delta frame |
+| 4 | DataSize | Compressed data size (uint32 LE) |
+| N | Data | Compressed payload |
 
-### 单元格数据（压缩前）
+### Cell Data (before compression)
 
-- **渐变模式**: 1 字节 `[luminance]`
-- **全彩模式**: 3 字节 `[r, g, b]`
+- **Gradient mode** (`ColorMode 0`): 1 byte per cell `[luminance]`
+- **Full-color mode** (`ColorMode 1`): 3 bytes per cell `[r, g, b]`
 
-### 压缩算法
+### Compression
 
-1. **Delta Encoding**: 行内差分编码
-2. **RLE**: 游程长度编码
-   - `255, count, value`: 重复 `count` 次 `value`
-   - `N, v1, v2, ...`: N 个字面量
+1. **Delta Encoding**: row-wise differential encoding
+2. **RLE** (Run-Length Encoding):
+   - `255, count, value` → repeat `value` for `count` times
+   - `N, v1, v2, ...` → N literal values
 
 ---
 
-## TXAEncoder 使用指南
+## TXAEncoder
 
-用于创建 TXA 文件。
+Programmatic TXA file creation.
 
 ```javascript
 import { TXAEncoder } from './src/TXAEncoder.js'
@@ -430,24 +361,24 @@ const encoder = new TXAEncoder({
   width: 80,
   height: 45,
   fps: 30,
-  colorMode: 0,           // 0=渐变, 1=全彩
+  colorMode: 0,            // 0 = gradient, 1 = full color
   characters: ' 01',
-  lumBits: 8,             // 亮度量化 (8/6/5/4)
+  lumBits: 8,               // Luminance quantization (8/6/5/4)
   bgColor: [0, 0, 0],
   changeSpeed: 2.0,
   canvasRatio: 0
 })
 
-// 构建色板（渐变模式）
+// Build gradient color palette
 encoder.buildColorPalette([0, 0, 0], [0, 255, 0])
 
-// 添加帧（二维数组，每个单元格为 [luminance] 或 [r,g,b]）
+// Add frames (2D array, each cell is [luminance] or [r, g, b])
 for (let i = 0; i < 300; i++) {
-  const grid = generateFrame(i)  // 你的帧数据
+  const grid = generateFrame(i)
   encoder.addFrame(grid)
 }
 
-// 编码并下载
+// Encode and download
 const buffer = encoder.encode()
 const blob = new Blob([buffer], { type: 'application/octet-stream' })
 const url = URL.createObjectURL(blob)
@@ -456,23 +387,22 @@ a.href = url
 a.download = 'animation.txa'
 a.click()
 
-// 查看压缩统计
+// Compression stats
 console.log(encoder.getStats())
 // { totalFrames: 300, keyframes: 10, deltaFrames: 290, compressionRatio: '85.2%' }
 ```
 
 ---
 
-## TXADecoder 使用指南
+## TXADecoder
 
-用于解析 TXA 文件。
+Parse and read TXA files.
 
 ```javascript
 import { TXADecoder } from './src/TXADecoder.js'
 
 const decoder = new TXADecoder()
 
-// 解析文件
 const response = await fetch('/animation.txa')
 const buffer = await response.arrayBuffer()
 const header = decoder.parse(buffer)
@@ -480,10 +410,9 @@ const header = decoder.parse(buffer)
 console.log(header)
 // { version: 2, width: 80, height: 45, fps: 30, totalFrames: 300, ... }
 
-// 获取帧数据
-const grid = decoder.getFrame(0)  // 二维数组 grid[x][y]
+// Read frame data
+const grid = decoder.getFrame(0)  // 2D array: grid[x][y]
 
-// 遍历渲染
 for (let x = 0; x < decoder.width; x++) {
   for (let y = 0; y < decoder.height; y++) {
     const cell = grid[x][y]
@@ -499,6 +428,12 @@ for (let x = 0; x < decoder.width; x++) {
 
 ---
 
-## 许可证
+## Tech Stack
+
+- [Three.js](https://threejs.org/) – 3D rendering and WebGL
+- [postprocessing](https://github.com/pmndrs/postprocessing) – Shader post-processing pipeline
+- [Vite](https://vitejs.dev/) – Dev server and bundler
+
+## License
 
 MIT
