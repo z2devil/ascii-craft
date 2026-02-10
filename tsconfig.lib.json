@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/TXAPlayerElement.ts", "src/ASCIIPlayer.ts", "src/TXADecoder.ts"]
+}
