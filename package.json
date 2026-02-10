@@ -8,10 +8,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "three": "^0.170.0",
-    "postprocessing": "^6.36.4"
+    "postprocessing": "^6.36.4",
+    "three": "^0.170.0"
   },
   "devDependencies": {
+    "@types/three": "^0.182.0",
+    "typescript": "^5.9.3",
     "vite": "^6.0.7"
   }
 }
